@@ -18,9 +18,8 @@ SynthDef.new(\pad, {
 	Out.ar(out, car.tanh!2);
 }).add;
 
-
 SynthDef.new(\arp, {
-	|freq=440, atk=0.1, rel=1, fDec=1, amp=0.2, q, pan, out|
+	|freq=440, atk=0.1, rel=1, amp=0.2, q, pan, out|
 
 	var env = EnvGen.kr(
 		Env.perc(atk, rel, curve:1),
@@ -38,7 +37,7 @@ SynthDef.new(\arp, {
 }).add;
 
 SynthDef.new(\glitch, {
-	arg freq=500, mRatio=1, cRatio=1, index=1, atk=0.1, rel=1, amp=0.2, pan=0, out, bus;
+	|freq=500, mRatio=1, cRatio=1, index=1, atk=0.1, rel=1, amp=0.2, pan=0, out|
 	var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
 	var mod = SinOsc.ar(freq, mul:freq * mRatio * index);
 	var car = RLPF.ar(
@@ -104,13 +103,13 @@ SynthDef.new(\snare, {
 }).add;
 
 SynthDef.new(\metal, {
-	arg freq=500, mRatio=1, cRatio=1, index=1, atk=0.1, rel=1, amp=0.2, pan=0, room=0.5, damp=0.5, out, bus;
+	|freq=500, mRatio=1, cRatio=1, index=1, atk=0.1, rel=1, amp=0.2, room=0.5, damp=0.5, out|
 	var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
 	var mod = SinOsc.ar(freq, mul:freq * mRatio * index);
 	var car = RLPF.ar(
 		Pulse.ar(freq * cRatio + mod, mul:amp),
 		XLine.kr(freq * 10, freq * 30, rel))!2;
-	var reverbed = FreeVerb2.ar( // FreeVerb2 - true stereo UGen
+	var reverbed = FreeVerb2.ar(
             car[0], // Left channel
             car[1], // Right Channel
 		0.75, room, damp, amp) * env;
@@ -294,18 +293,6 @@ pArp = {
 	);
 };
 
-/*
-p = Ppar([
-	pKick.value(inf),
-	pHh.value(inf),
-	pSnare.value(inf),
-	pWiggle.value(inf),
-	pGlitch.value(inf),
-	pMetal.value(inf),
-	pPad.value(inf),
-	pArp.value(inf),
-]).play;*/
-
 ~pT = Ppar([
 	pKick.value(inf),
 	pHh.value(inf),
@@ -330,14 +317,14 @@ p = Pseq([
 		pHh.value(1),
 		pSnare.value(4),
 		pGlitch.value(16),
-	    pWiggle.value(8),
+		pWiggle.value(8),
 	]),
 	Ppar([
 		pKick.value(2 * 4),
 		pHh.value(1 * 4),
 		pSnare.value(4 * 4),
 		pGlitch.value(16 * 4),
-	    pWiggle.value(8 * 4),
+		pWiggle.value(8 * 4),
 		pPad.value(4),
 	]),
 	pMetal.value(1),
@@ -347,7 +334,7 @@ p = Pseq([
 		pSnare.value(4 * 2),
 		pMetal.value(8 * 2),
 		pGlitch.value(16 * 2),
-	    pWiggle.value(8 * 2 + 1),
+		pWiggle.value(8 * 2 + 1),
 		pArp.value(4 * 2)
 	]),
 	Ppar([
@@ -356,12 +343,27 @@ p = Pseq([
 		pSnare.value(4 * 4),
 		pMetal.value(8 * 4),
 		pGlitch.value(16 * 4),
-	    pWiggle.value(8 * 4),
+		pWiggle.value(8 * 4),
 		pArp.value(4 * 4),
 		pPad.value(4),
+	]),
+	Ppar([
+		pKick.value(2 * 4),
+		pHh.value(1 * 4),
+		pSnare.value(4 * 4),
+		pGlitch.value(16 * 4),
+		pWiggle.value(8 * 4),
+		pArp.value(4 * 3),
+		pPad.value(4),
+	]),
+	Ppar([
+		pKick.value(2 * 1),
+		pHh.value(1 * 1),
+		pSnare.value(4 * 1),
+		pGlitch.value(16 * 1),
+		pWiggle.value(8 * 1 + 1),
 	]),
 ]).play;
 )
 
 p.stop;
-z.stop;
