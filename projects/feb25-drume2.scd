@@ -1,3 +1,5 @@
+Server.default.options.outDevice_("External Headphones");
+
 s.boot;
 s.quit;
 
@@ -215,9 +217,9 @@ pMetal = {
 		\dur, 1/8,
         \freq, 300,
 	    \atk, 0.001,
-		\amp, Pseq([
-		  Peseq(1, 8, on: 0.5, offset:4, repeats:1),
-		  Peseq(1, 8, on: 0.5, offset:6, repeats:1),
+		\amp, 0.75 * Pseq([
+		  Peseq(1, 8, offset:4, repeats:1),
+		  Peseq(1, 8, offset:6, repeats:1),
 	    ], repeats),
 	    \rel, 0.1
 	);
@@ -254,7 +256,7 @@ pPad = {
 			Prand([1, -1], repeats),
 			1
 		),
-		\amp, 0.015,
+		\amp, 0.025,
 		\atk, Pexprand(1, 3),
 		\rel, Pkey(\dur, repeats) / 2
 	);
@@ -282,9 +284,9 @@ pArp = {
 			Prand([2, -1], inf),
 			Prand([1, -1], inf)
 		),
-		\amp, Pseq([
-			Peseq(3, 8, on: 0.1, off: { if(1.0.rand < 0.5, 0.05, 0) }, offset:0, repeats:3),
-			Peseq(5, 8, on: 0.1, offset:2, repeats:1),
+		\amp, 0.15 * Pseq([
+			Peseq(3, 8, off: { if(1.0.rand < 0.5, 0.5, 0) }, offset:0, repeats:3),
+			Peseq(5, 8, offset:2, repeats:1),
 		], repeats),
 		\atk, 0.01,
 		\rel, 0.05,
