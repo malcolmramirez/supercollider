@@ -1,6 +1,7 @@
 Server.default.options.outDevice_("External Headphones");
 
 s.boot;
+Server.killAll;
 s.quit;
 
 (
@@ -75,7 +76,7 @@ SynthDef.new(\hh, {
 
 
 SynthDef.new(\wiggle, {
-	|out, atk=0.005, dec=0.05, cFreq=440, wiggleFactor=0, amp=0.25|
+	|out, atk=0.005, dec=0.05, cFreq=440, wiggleFactor=0, amp=0.25, pan=0|
 
 	var fmEnv = EnvGen.kr(
 		Env.perc(atk, dec, curve:[2, 2]),
@@ -83,7 +84,8 @@ SynthDef.new(\wiggle, {
 	var mod = SinOsc.kr(cFreq * (0.84 + wiggleFactor));
 
 	var fm = SinOsc.ar(cFreq * mod, mul:amp) * fmEnv;
-	Out.ar(out, fm.tanh!2);
+	fm = Pan2.ar(fm, pan);
+	Out.ar(out, fm.tanh);
 }).add;
 
 
@@ -123,7 +125,7 @@ SynthDef.new(\metal, {
 (
 
 var pKick, pHh, pSnare,
-    pWiggle, pGlitch, pMetal,
+    pWiggle, pWiggle2, pGlitch, pMetal,
     pPad, pArp;
 
 ~ts = 2/3;
@@ -183,11 +185,32 @@ pWiggle = {
 		\cFreq, 880,
 		\atk, 0.001,
 		\dec, Pexprand(0.03, 0.05),
-		\amp, Peseq(
+		\amp, 0.045 * Peseq(
 			k:3,
 			n:16,
-			on: 0.035,
-			off: { if(1.0.rand < 0.25, 0.0025, 0) },
+			off: { if(1.0.rand < 0.25, 0.75, 0) },
+			offset:0,
+			repeats:repeats)
+	);
+};
+
+
+pWiggle2 = {
+    |repeats|
+    Pbind(
+		\instrument, \wiggle,
+		\out, 0,
+		\stretch, ~ts,
+		\dur, 1/8,
+		\instrument, \wiggle,
+		\wiggleFactor, Pwhite(0.0, 0.012).trace,
+		\cFreq, 880,
+		\dec, Pwhite(0.25, 0.75),
+		\amp, 0.05,
+		\pan, Pwhite(-1.0, 1.0),
+		\amp, 0.035 * Peseq(
+			k:1,
+			n:32,
 			offset:0,
 			repeats:repeats)
 	);
@@ -306,6 +329,7 @@ pArp = {
 	pArp.value(inf),
 ]);
 
+// Vary wiggle
 p = Pseq([
 	Ppar([
 		pKick.value(2),
@@ -338,16 +362,6 @@ p = Pseq([
 		pGlitch.value(16 * 2),
 		pWiggle.value(8 * 2 + 1),
 		pArp.value(4 * 2)
-	]),
-	Ppar([
-		pKick.value(2 * 4),
-		pHh.value(1 * 4),
-		pSnare.value(4 * 4),
-		pMetal.value(8 * 4),
-		pGlitch.value(16 * 4),
-		pWiggle.value(8 * 4),
-		pArp.value(4 * 4),
-		pPad.value(4),
 	]),
 	Ppar([
 		pKick.value(2 * 4),

@@ -6,17 +6,6 @@ s.quit;
 
 (
 
-SynthDef.new(\glitch, {
-	|out, freq=500, mRatio=1, cRatio=1, index=1, atk=0.1, rel=1, amp=0.2, pan=0|
-	var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
-	var mod = SinOsc.ar(freq, mul:freq * mRatio * index);
-	var car = RLPF.ar(
-		Pulse.ar(freq * cRatio + mod, mul:amp),
-		XLine.kr(freq * 10, freq * 30, rel)) * env;
-	car = Pan2.ar(car, pan);
-	Out.ar(out, Clip.ar(car));
-}).add;
-
 SynthDef.new(\kick, {
 	|out, freq=50, atk=0.005, dec=0.2, amp=1|
 	var env = EnvGen.kr(
@@ -84,22 +73,6 @@ SynthDef.new(\bass, {
 	Out.ar(out, acid.softclip!2);
 }).add;
 
-
-SynthDef.new(\karplus, {
-	|out, freq=500, atk=0.1, rel=1, amp=0.2, decayTime=0.5, coef=0.5|
-	var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
-	var kp = Pluck.ar(
-		PinkNoise.ar,
-		Dust.ar(100, mul:2, add:-1),
-		maxdelaytime:0.5,
-		delaytime:(freq.reciprocal),
-		decaytime:decayTime,
-		coef:coef
-	) * amp * env;
-	Out.ar(out, kp.softclip!2);
-}).add;
-
-
 SynthDef.new(\pad, {
 	|chord, atk=0.1, rel=1, amp=0.2, out|
 
@@ -119,7 +92,7 @@ SynthDef.new(\pad, {
 (
 
 var pKick, pHh, pSnare, pMetal, pMetal2,
-    pBass, pKarplus, pPad;
+    pBass, pKarplus, pArp, pPad;
 
 ~ts = 2/3;
 
@@ -154,7 +127,7 @@ pSnare = {
 		\stretch, ~ts,
 		\dur, 1/8,
 		\atk, 0.001,
-	    \amp, 0.1 * Peseq(1, 32, off:{ [0.5, 0].wchoose([0.25, 0.75]) }, offset:4, repeats:repeats),
+	    \amp, 0.1 * Peseq(1, 32, off: { [0.5, 0].wchoose([0.25, 0.75]) }, offset:4, repeats:repeats),
 	);
 };
 
@@ -221,33 +194,14 @@ pBass = {
 				repeats:repeats)
 		),
 	    \rel, 0.1,
-		\fRel, Pwhite(0.001, 0.1).trace,
+		\fRel, Pwhite(0.001, 0.1),
 		\width, Pwhite(0.0, 1.0),
 		\rq, Pexprand(1/30, 1/10)
 	);
 };
 
-
-pKarplus = {
-	|repeats|
-	Pbind(
-		\instrument, \karplus,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 8,
-		// D#4 in midi.
-		\freq, Prand(
-			(all{:m.midicps * Scale.mixolydian.ratios[i], i <-[0, 1, 4, 6], m <- [63, 68]}), repeats:repeats),
-	    \atk, 0.001,
-		\amp, 0.5 * Peseq(1, 2, repeats:inf),
-		\rel, 1,
-		\decayTime, -1
-	);
-};
-
 ~padChords = all{:
-	m.midicps * [1, Scale.mixolydian.ratios[i], Scale.mixolydian.ratios[i+1], Scale.mixolydian.ratios[i+4]],
-	i <- [1, 2], m <- [63, 68]};
+	m.midicps * [1, Scale.mixolydian.ratios[1], Scale.mixolydian.ratios[2], Scale.mixolydian.ratios[5]], m <- [63, 65, 68, 71]};
 pPad = {
 	|repeats|
 	Pbind(
@@ -258,8 +212,7 @@ pPad = {
 		// D#4 in midi.
 		\chord, Pwalk(
 			~padChords,
-			Pseq([1, -2], repeats:repeats),
-			Pseq([1, -1], repeats:repeats)),
+			1, 1),
 	    \atk, 0.05,
 		\amp, 0.01,
 		\rel, 2
@@ -273,7 +226,7 @@ pPad = {
 	pMetal2.value(inf),
 	pBass.value(inf),
 	pMetal.value(inf),
-	pPad.value(inf)
+	pPad.value(inf),
 ]).play;
 
 )
