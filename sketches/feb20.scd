@@ -47,14 +47,7 @@ p = Ppar(
 			\amp, Pexprand(0.01, 0.05),
 			\atk, Pexprand(0.01, 0.05),
 			\rel, Pkey(\dur, inf).reciprocal,
-			\pan, Pwhite(-1.0, 1.0)),
-		Pbind(
-			\instrument, \kick,
-			\out, 0,
-			\dur, 1,
-			\freq, 50,
-			\sus, 0.5,
-			\dec, 0.25)
+			\pan, Pwhite(-1.0, 1.0))
 	],
 	inf).play;
 

@@ -1,4 +1,4 @@
-Server.default.options.outDevice_("External Headphones");
+Server.default.options.outDevice_("Multi-Output Device");
 
 
 s.boot;
@@ -16,21 +16,6 @@ SynthDef.new(\glitch, {
 	car = Pan2.ar(car, pan);
 	Out.ar(out, Clip.ar(car));
 }).add;
-
-SynthDef.new(\karplus, {
-	|out, freq=500, atk=0.1, rel=1, amp=0.2, decayTime=0.5, coef=0.5|
-	var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
-	var kp = Pluck.ar(
-		PinkNoise.ar,
-		Dust.ar(1, mul:2, add:-1),
-		maxdelaytime:0.5,
-		delaytime:(freq.reciprocal),
-		decaytime:decayTime,
-		coef:coef
-	) * amp * env;
-	Out.ar(out, kp.softclip!2);
-}).add;
-
 
 SynthDef.new(\pad, {
 	|out, freq=500, atk=0.1, rel=1, amp=0.2, rq=0.1s|
@@ -89,12 +74,24 @@ SynthDef.new(\bass, {
 	Out.ar(out, acid.softclip!2);
 }).add;
 
+SynthDef.new(\pad, {
+	|out, freq=500, atk=0.1, rel=1, amp=0.2, rq=0.1s|
+	var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
+	var pad = Mix.ar(
+		Resonz.ar(
+			Pulse.ar(freq),
+			freq,
+			rq)
+	) * env * amp;
+	Out.ar(out, pad.softclip!2);
+}).add;
+
 )
 
 (
 
 var pGlitchClick, pGlitchKick, pNoise, pSnare, pKick,
-    pBass,
+    pBass, pPad, pArp,
     tempo;
 
 tempo = TempoClock.new(150/60);
@@ -124,13 +121,19 @@ pGlitchKick = {
 		\instrument, \glitch,
 		\out, 0,
 		\dur, 1/8,
-		\freq, 55,
+		\freq, 110,
 		\index, Pwhite(15, 20),
-		\amp, 0.5 * Peseq(
-			3, 16,
-			off:{ [0.25, 0].wchoose([0.1, 0.9]) },
-			repeats:repeats,
-			offset:4
+		\amp, 0.25 * Pseq(
+			[
+				Peseq(
+					1, 16,
+					offset:4
+				),
+				Peseq(
+					1, 16,
+					offset:10
+				),
+			], repeats:repeats
 		),
 		\atk, 0.001,
 		\rel, 0.05)
@@ -190,23 +193,75 @@ pBass = {
 		\instrument, \bass,
 		\out, 0,
 		\dur, 1/4,
-		// D#4 in midi.
-		\freq, Prand([48.midicps, 51.midicps, 46.midicps], repeats:repeats),
+		\scale, Scale.todi,
+		\degree, Pwalk(
+			[-3, 0, 4],
+			Prand([1, -1], repeats:inf),
+			1,
+			repeats:repeats),
+		\octave, 3,
 	    \atk, 0.001,
-		\amp, 0.05,
-	    \rel, 0.1,
+		\amp, 0.045 *
+			Pseq([
+			   Peseq(5, 16, off:{ [0.5, 0].wchoose([0.5, 0.5]) }),
+			   Peseq(7, 16, off:{ [0.5, 0].wchoose([0.25, 0.75]) }, offset:0)
+			], repeats:repeats),
+		\rel, 0.2,
 		\fRel, Ptime().collect({ |x| ((x * 0.1).sin + 1) / 2 }).trace,
 		\width, Ptime().collect({ |x| ((x * 0.1).sin + 1) / 1.9 }).trace,
 		\rq, 1/5
 	);
 };
 
+pPad = {
+	|repeats|
+	Pbind(
+		\instrument, \pad,
+		\out, 0,
+		\dur, 8,
+		\scale, Scale.todi,
+		\degree, Pwalk(
+			[[0, 2, 3], [3, 4, 6], [1, 4, 11], [1, 3, 6]],
+			1,
+			1),
+		\octave, 5,
+	    \atk, 0.01,
+		\amp, 0.01,
+		\rel, Pkey(\dur, repeats:inf) * 3/4);
+};
+
+pArp = {
+	|repeats|
+	Pbind(
+		\instrument, \pad,
+		\out, 0,
+		\dur, 1/4,
+		\scale, Scale.todi,
+		\degree, Pwalk(
+			[-3, 0, 2, 4, 6],
+			1,
+			Prand([1, -1], repeats:inf)),
+		\octave, Prand([5, 6], repeats:repeats),
+	    \atk, 0.01,
+		\amp, 0.15 * Pkey(\octave, repeats:repeats).reciprocal *
+		Pseq(
+			[
+				Peseq(0, 4),
+				Peseq(3, 4),
+				Peseq(0, 4),
+				Peseq(1, 4, offset:3),
+		], repeats:repeats),
+		\rel, Pwhite(0.35, 0.5));
+};
+
 ~pT = Ppar([
 	pGlitchClick.value(inf),
-	pGlitchKick.value(inf),
 	pNoise.value(inf),
 	pSnare.value(inf),
-	pKick.value(inf)
+	pKick.value(inf),
+	pBass.value(inf),
+	pPad.value(inf),
+	pGlitchKick.value(inf)
 ]).play(tempo);
 
 )

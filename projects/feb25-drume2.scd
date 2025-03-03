@@ -1,8 +1,10 @@
-Server.default.options.outDevice_("External Headphones");
+Server.default.options.outDevice_("MacBook Pro Speakers");
 
 s.boot;
 Server.killAll;
 s.quit;
+
+Server.default.record;
 
 (
 
@@ -379,7 +381,13 @@ p = Pseq([
 		pGlitch.value(16 * 1),
 		pWiggle.value(8 * 1 + 1),
 	]),
-]).play;
+]);
+
+
+pWiggle.value(inf).play;
 )
+
+Server.default.stopRecording;
+
 
 p.stop;

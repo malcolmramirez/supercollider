@@ -1,8 +1,9 @@
-Server.default.options.outDevice_("External Headphones");
-
+Server.default.options.outDevice_("Multi-Output Device");
 
 s.boot;
 s.quit;
+
+Server.default.record;
 
 (
 
@@ -171,3 +172,5 @@ pPad = {
 ]).play;
 
 )
+
+Server.default.stopRecording;

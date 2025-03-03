@@ -1,8 +1,10 @@
-Server.default.options.outDevice_("External Headphones");
-
+Server.default.options.outDevice_("Multi-Output Device");
+Ndef(\microphone, { SoundIn.ar(0) }).gui;
 
 s.boot;
 s.quit;
+
+Server.default.record;
 
 (
 
@@ -74,15 +76,15 @@ SynthDef.new(\bass, {
 }).add;
 
 SynthDef.new(\pad, {
-	|chord, atk=0.1, rel=1, amp=0.2, out|
+	|freq, atk=0.1, rel=1, amp=0.2, out|
 
 	var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
-	var mod = SinOsc.kr(chord / 2, mul:0.25);
+	var mod = SinOsc.kr(freq / 2, mul:0.25);
 	var car = Mix.ar([
 		RLPF.ar(
-			Blip.ar(chord, Pulse.ar(1 * Line.kr(1, 50, rel/2), mul:50) ),
-			chord * 5),
-		LPF.ar(Blip.ar(chord), chord * 10)
+			Blip.ar(freq, Pulse.ar(1 * Line.kr(1, 50, rel/2), mul:50) ),
+			freq * 5),
+		LPF.ar(Blip.ar(freq), freq * 10)
 	]) * amp * env;
 	Out.ar(out, car.softclip!2);
 }).add;
@@ -178,11 +180,12 @@ pBass = {
 		\stretch, ~ts,
 		\dur, 1/8,
 		// D#4 in midi.
-		\freq, Prand(
-			(37.midicps * Scale.mixolydian.ratios) ++
-			(42.midicps * Scale.mixolydian.ratios), repeats:repeats) * 0.5,
+		\root, 2,
+		\scale, Scale.mixolydian,
+		\octave, Prand([2, 3], repeats:repeats),
+		\degree, Prand([0, 3, 5], repeats:repeats),
 	    \atk, 0.001,
-		\amp, 0.075 * (
+		\amp, 0.065 * (
 			Peseq(
 				1, 16,
 				off:{ [1, 0].wchoose([0.1, 0.9]) },
@@ -200,8 +203,7 @@ pBass = {
 	);
 };
 
-~padChords = all{:
-	m.midicps * [1, Scale.mixolydian.ratios[1], Scale.mixolydian.ratios[2], Scale.mixolydian.ratios[5]], m <- [63, 65, 68, 71]};
+// add more sprinkled as a lead?
 pPad = {
 	|repeats|
 	Pbind(
@@ -210,9 +212,15 @@ pPad = {
 		\stretch, ~ts,
 		\dur, 8,
 		// D#4 in midi.
-		\chord, Pwalk(
-			~padChords,
-			1, 1),
+		\root, 3,
+		\scale, Scale.mixolydian,
+		\degree, Pseq([
+			[0, 1, 2, 5],
+			[0, 2, 5, 8],
+			[3, 4, 5, 9],
+			[2, 3, 4, 8],
+		], repeats:repeats),
+		\octave, 5,
 	    \atk, 0.05,
 		\amp, 0.01,
 		\rel, 2
@@ -224,9 +232,11 @@ pPad = {
 	pHh.value(inf),
 	pSnare.value(inf),
 	pMetal2.value(inf),
-	pBass.value(inf),
 	pMetal.value(inf),
+	pBass.value(inf),
 	pPad.value(inf),
 ]).play;
 
 )
+
+Server.default.stopRecording;
