@@ -25,7 +25,7 @@ SynthDef.new(\pad, {
 SynthDef.new(\glitch, {
 	arg freq=500,
 		mRatio=1, cRatio=1, index=1,
-		atk=0.1, rel=1, amp=0.2,
+		atk=0.1, rel=1, amp=0.2, pan,
 		out;
 	var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
 	var mod = SinOsc.ar(freq, mul:freq * mRatio * index);
