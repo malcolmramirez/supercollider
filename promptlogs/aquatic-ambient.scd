@@ -1,3 +1,5 @@
+Server.default.options.outDevice_("Macbook Pro Speakers");
+
 s.boot;
 s.quit;
 
@@ -7,53 +9,46 @@ s.scope;
 (
 
 SynthDef.new(\osc, {
-	arg buf,
-	    freq,
+	arg buf, freq,
+	    lpf,
+	    period, phase,
 	    modRatio = 2, index = 1,
-	    amp = 0.25, atk = 0.1, sus = 0.1, rel,
-	    dry, wet,
+	    amp = 0.25, atk = 0.1, sus = 0.1, rel = 2,
 	    out;
 
-	var sig, env, mod;
-
-	mod = Pulse.ar(freq, mul:freq * modRatio * index);
+	var sig, env;
 
 	env = EnvGen.ar(
 		Env.new(
 			[0, 1, 1, 0],
 			[atk, sus, rel]),
 		doneAction:2);
-	sig = Osc.ar(buf, freq + mod) * dry;
-	sig = sig + PinkNoise.ar * wet;
+	sig = Osc.ar(buf, freq);
+	sig = LPF.ar(sig, lpf * SinOsc.kr(period, phase + pi/2, mul:0.5, add:1));
+
+	sig = sig * env * amp * SinOsc.kr(period, phase, mul:0.5, add:1);
 
 	// Safety processing - remove DC offset and clip.
 	sig = LeakDC.ar(sig);
-	sig = sig * env * amp;
 	sig = sig.softclip;
 
 	Out.ar(out, sig!2);
 }).add;
 
-SynthDef(\reverb, {
-	arg input, out,
-	    roomsize = 10, revtime = 0.7, damping = 0.5, inputbw = 0.5,
-	    spread = 15, drylevel = 1, earlyreflevel = 0.7, taillevel = 0.5,
-	    maxroomsize = 300,
+SynthDef.new(\reverb, {
+	arg in, out,
+	    mix = 1, room = 0.99, damp = 0.25,
 	    amp = 1.0;
 
 	var sig, reverbed;
 
-    sig = In.ar(input, 2);
-	sig = GVerb.ar(
-		Mix.ar(sig),
-		roomsize,
-		revtime,
-		damping,
-		inputbw,
-		spread,
-		drylevel,
-		earlyreflevel,
-		taillevel
+    sig = In.ar(in, 2);
+	sig = FreeVerb2.ar(
+		sig[0],
+		sig[1],
+		mix,
+		room,
+		damp
 	);
 
 	sig = sig * amp;
@@ -62,26 +57,15 @@ SynthDef(\reverb, {
 	Out.ar(out, sig);
 }).add;
 
-SynthDef.new(\kick, {
-	|out, freq=50, atk=0.005, dec=0.2, amp=1|
-	var env = EnvGen.kr(
-		Env.new([0, 1, 0], [atk, dec], curve:[-6, -6]),
-		doneAction:2);
-	var kickFm = SinOsc.ar(freq * env, phase:pi/2) + Dust.ar(10, mul:0.05) * env;
-	Out.ar(out, Clip.ar(kickFm!2) * amp);
-}).add;
-
 )
-
-Scale.directory;
 
 (
 
-var b1, rbus, rev, wtGen, wave;
+var wtgen, wtosc,
+    rev, rbus,
+    drone, sunspots;
 
-rbus = Bus.audio(s, 2);
-
-wtGen = {
+wtgen = {
 	arg buf,
 	    numPoints=20, timeRange=10, curveRange=20;
 
@@ -94,44 +78,63 @@ wtGen = {
 	buf.loadCollection(env.asSignal(1024).asWavetable);
 };
 
-rev = Synth(
-	\reverb,
-	[
-		\input, rbus,
-		\out, 0,
-		\amp, 0.75,
-		\drylevel, 0,
-		\damping, 0.75,
-		\roomsize, 250,
-		\spread, 100,
-    ]);
+wtosc = {
+	arg dur, octave, period, amp, phase, lpf, degree;
 
-wave = {
-	arg dur, repeats, octave, interval, amp;
+	var wbuf;
 
-	var wBuf = Buffer.alloc(s, 2048);
+	wbuf = Buffer.alloc(s, 2048);
+
 	Pbind(
 		\instrument, \osc,
 		\dur, dur,
-		\buf, Pfuncn( { wtGen.value(wBuf) }, repeats:repeats),
+		\buf, Pfuncn( { wtgen.value(wbuf) }, repeats:inf),
+		\lpf, lpf,
 		\scale, Scale.phrygian,
-		\degree, Pfuncn( { Scale.phrygian.degrees.choose }, repeats:repeats),
+		\degree, degree,
 		\octave, octave,
 		\amp, amp,
-		\atk, 0.1,
-		\sus, 0.1,
-		\rel, Pkey(\dur, repeats:repeats) * 4/5,
-		\dry, Ptime().collect({ arg t; (sin(t / interval) + 1) / 4}).trace,
-		\wet, Ptime().collect({ arg t; (cos(t / interval) + 1) / 2}).trace,
+		\period, period,
+		\phase, phase,
+		\atk, Pkey(\dur, repeats:inf) * 1/5,
+		\sus, Pkey(\dur, repeats:inf) * 4/5,
+		\rel, Pkey(\dur, repeats:inf) * 2,
 		\out, rbus);
 };
 
-// Add more "waves"
-~pT = Ppar(
+rbus = Bus.audio(s, 2);
+rev = Synth.new(
+	\reverb,
 	[
-		wave.value(1/6, inf, 6, 5, 0.2),
-		wave.value(1/8, inf, 5, 1, 0.25),
-		wave.value(1/2, inf, 3, 3, 0.35),
-    ]).play;
+		\in, rbus,
+		\out, 0,
+		\amp, 0.75
+    ]);
+
+// Add more "waves"
+Scale.phrygian.degrees.postln;
+
+drone = wtosc.value(
+	dur:Prand([2, 4, 8], repeats:inf),
+	octave:Prand([3, 4], repeats:inf),
+	period:Pkey(\dur, repeats:inf).reciprocal,
+	degree:Prand([1, 2, 6], repeats:inf),
+	amp:0.015,
+	phase:0,
+	lpf:250);
+
+sunspots = wtosc.value(
+	dur:Prand([1/8, 1/4, 1/2], repeats:inf),
+	octave:Prand([5, 6], repeats:inf),
+	period:Pkey(\dur, repeats:inf).reciprocal,
+	degree:Prand([0, 2, 6, 7], repeats:inf),
+	amp:Pexprand(0.0001, 0.005),
+	phase:Pwhite(0, 2*pi),
+	lpf:1500);
+
+Ppar([
+	drone,
+	sunspots
+]).play;
 
 )
