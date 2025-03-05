@@ -127,264 +127,261 @@ SynthDef.new(\metal, {
 (
 
 var pKick, pHh, pSnare,
-    pWiggle, pWiggle2, pGlitch, pMetal,
-    pPad, pArp;
+pWiggle, pWiggle2, pGlitch, pMetal,
+pPad, pArp;
 
 ~ts = 2/3;
 
 pKick = {
     |repeats|
-	Pbind(
-		\instrument, \kick,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 1/8,
-		\freq, 75,
-		\amp, Pseq([
-			Peseq(5, 32, on: 0.75, off: { if(1.0.rand < 0.1, 0.25, 0) }, repeats:1),
-			Peseq(4, 32, on: 0.75, off: { if(1.0.rand < 0.1, 0.25, 0) }, repeats:1)
-		], repeats)
-	);
+    Pbind(
+        \instrument, \kick,
+        \out, 0,
+        \stretch, ~ts,
+        \dur, 1/8,
+        \freq, 75,
+        \amp, Pseq([
+            Peseq(5, 32, on: 0.75, off: { if(1.0.rand < 0.1, 0.25, 0) }, repeats:1),
+            Peseq(4, 32, on: 0.75, off: { if(1.0.rand < 0.1, 0.25, 0) }, repeats:1)
+        ], repeats)
+    );
 };
 
 pHh = {
     |repeats|
-	Pbind(
-		\instrument, \hh,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 1/8,
-		\amp, Pseq([
-			Peseq(12, 64, on: 0.6, off: { if(1.0.rand < 0.45, 0.05, 0) }, repeats:1),
-			Peseq(11, 64, on: 0.6, off: { if(1.0.rand < 0.45, 0.05, 0) }, repeats:1)
-		], repeats)
-	);
+    Pbind(
+        \instrument, \hh,
+        \out, 0,
+        \stretch, ~ts,
+        \dur, 1/8,
+        \amp, Pseq([
+            Peseq(12, 64, on: 0.6, off: { if(1.0.rand < 0.45, 0.05, 0) }, repeats:1),
+            Peseq(11, 64, on: 0.6, off: { if(1.0.rand < 0.45, 0.05, 0) }, repeats:1)
+        ], repeats)
+    );
 };
 
 pSnare = {
     |repeats|
-	Pbind(
-		\instrument, \snare,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 1/8,
-		\atk, 0.001,
-	    \amp, Pseq([
-			Peseq(1, 8, on: 0.1, offset:4, repeats:3),
-			Peseq(2, 8, on: 0.1, offset:6, repeats:1),
-		], repeats),
-	);
+    Pbind(
+        \instrument, \snare,
+        \out, 0,
+        \stretch, ~ts,
+        \dur, 1/8,
+        \atk, 0.001,
+        \amp, Pseq([
+            Peseq(1, 8, on: 0.1, offset:4, repeats:3),
+            Peseq(2, 8, on: 0.1, offset:6, repeats:1),
+        ], repeats),
+    );
 };
 
 pWiggle = {
     |repeats|
     Pbind(
-		\instrument, \wiggle,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 1/8,
-		\wiggleFactor, Pwhite(0, 0.02),
-		\cFreq, 880,
-		\atk, 0.001,
-		\dec, Pexprand(0.03, 0.05),
-		\amp, 0.045 * Peseq(
-			k:3,
-			n:16,
-			off: { if(1.0.rand < 0.25, 0.75, 0) },
-			offset:0,
-			repeats:repeats)
-	);
+        \instrument, \wiggle,
+        \out, 0,
+        \stretch, ~ts,
+        \dur, 1/8,
+        \wiggleFactor, Pwhite(0, 0.02),
+        \cFreq, 880,
+        \atk, 0.001,
+        \dec, Pexprand(0.03, 0.05),
+        \amp, 0.045 * Peseq(
+            k:3,
+            n:16,
+            off: { if(1.0.rand < 0.25, 0.75, 0) },
+            offset:0,
+            repeats:repeats)
+    );
 };
 
 
 pWiggle2 = {
     |repeats|
     Pbind(
-		\instrument, \wiggle,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 1/8,
-		\instrument, \wiggle,
-		\wiggleFactor, Pwhite(0.0, 0.012).trace,
-		\cFreq, 880,
-		\dec, Pwhite(0.25, 0.75),
-		\amp, 0.05,
-		\pan, Pwhite(-1.0, 1.0),
-		\amp, 0.035 * Peseq(
-			k:1,
-			n:32,
-			offset:0,
-			repeats:repeats)
-	);
+        \instrument, \wiggle,
+        \out, 0,
+        \stretch, ~ts,
+        \dur, 1/8,
+        \instrument, \wiggle,
+        \wiggleFactor, Pwhite(0.0, 0.012).trace,
+        \cFreq, 880,
+        \dec, Pwhite(0.25, 0.75),
+        \amp, 0.05,
+        \pan, Pwhite(-1.0, 1.0),
+        \amp, 0.035 * Peseq(
+            k:1,
+            n:32,
+            offset:0,
+            repeats:repeats)
+    );
 };
 
 pGlitch = {
-	|repeats|
-	Pbind(
-		\instrument, \glitch,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 1/32,
-		\freq, 440,
-		\index, Pwhite(1, 20),
-		\amp, Peseq(5, 32, on: 0.01, off: { if(1.0.rand < 0.35, 0.0075, 0) }, repeats:repeats),
-		\atk, 0.001,
-		\rel, Pexprand(0.001, 0.01),
-		\pan, Pwhite(-1.0, 1.0));
+    |repeats|
+    Pbind(
+        \instrument, \glitch,
+        \out, 0,
+        \stretch, ~ts,
+        \dur, 1/32,
+        \freq, 440,
+        \index, Pwhite(1, 20),
+        \amp, Peseq(5, 32, on: 0.01, off: { if(1.0.rand < 0.35, 0.0075, 0) }, repeats:repeats),
+        \atk, 0.001,
+        \rel, Pexprand(0.001, 0.01),
+        \pan, Pwhite(-1.0, 1.0));
 };
 
 pMetal = {
     |repeats|
-	Pbind(
-		\instrument, \metal,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 1/8,
+    Pbind(
+        \instrument, \metal,
+        \out, 0,
+        \stretch, ~ts,
+        \dur, 1/8,
         \freq, 300,
-	    \atk, 0.001,
-		\amp, 0.75 * Pseq([
-		  Peseq(1, 8, offset:4, repeats:1),
-		  Peseq(1, 8, offset:6, repeats:1),
-	    ], repeats),
-	    \rel, 0.1
-	);
+        \atk, 0.001,
+        \amp, 0.75 * Pseq([
+            Peseq(1, 8, offset:4, repeats:1),
+            Peseq(1, 8, offset:6, repeats:1),
+        ], repeats),
+        \rel, 0.1
+    );
 };
 
 pPad = {
     |repeats|
-	Pbind(
-		\instrument, \pad,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 16,
-		\chord, Pwalk(
-			[
-				[
-					220 * Scale.lydian.ratios[0],
-					220 * Scale.lydian.ratios[2],
-					220 * Scale.lydian.ratios[5],
-					440 * Scale.lydian.ratios[3]
-				],
-				[
-					110 * Scale.lydian.ratios[4],
-					220 * Scale.lydian.ratios[2],
-					220 * Scale.lydian.ratios[5],
-					220 * Scale.lydian.ratios[6]
-				],
-				[
-					110 * Scale.lydian.ratios[5],
-					220 * Scale.lydian.ratios[2],
-					440 * Scale.lydian.ratios[3],
-					440 * Scale.lydian.ratios[6]
-				],
-			],
-			Prand([1, -1], repeats),
-			1
-		),
-		\amp, 0.025,
-		\atk, Pexprand(1, 3),
-		\rel, Pkey(\dur, repeats) / 2
-	);
+    Pbind(
+        \instrument, \pad,
+        \out, 0,
+        \stretch, ~ts,
+        \dur, 16,
+        \chord, Pwalk(
+            [
+                [
+                    220 * Scale.lydian.ratios[0],
+                    220 * Scale.lydian.ratios[2],
+                    220 * Scale.lydian.ratios[5],
+                    440 * Scale.lydian.ratios[3]
+                ],
+                [
+                    110 * Scale.lydian.ratios[4],
+                    220 * Scale.lydian.ratios[2],
+                    220 * Scale.lydian.ratios[5],
+                    220 * Scale.lydian.ratios[6]
+                ],
+                [
+                    110 * Scale.lydian.ratios[5],
+                    220 * Scale.lydian.ratios[2],
+                    440 * Scale.lydian.ratios[3],
+                    440 * Scale.lydian.ratios[6]
+                ],
+            ],
+            Prand([1, -1], repeats),
+            1
+        ),
+        \amp, 0.025,
+        \atk, Pexprand(1, 3),
+        \rel, Pkey(\dur, repeats) / 2
+    );
 };
 
 pArp = {
-	|repeats|
-	Pbind(
-		\instrument, \arp,
-		\out, 0,
-		\stretch, ~ts,
-		\dur, 1/8,
-		\freq, Pwalk(
-			[
-				110 * Scale.lydian.ratios[4],
-				110 * Scale.lydian.ratios[5],
-				220 * Scale.lydian.ratios[0],
-				220 * Scale.lydian.ratios[2],
-				220 * Scale.lydian.ratios[3],
-				220 * Scale.lydian.ratios[5],
-				220 * Scale.lydian.ratios[6],
-				440 * Scale.lydian.ratios[3],
-				440 * Scale.lydian.ratios[6]
-			],
-			Prand([2, -1], inf),
-			Prand([1, -1], inf)
-		),
-		\amp, 0.15 * Pseq([
-			Peseq(3, 8, off: { if(1.0.rand < 0.5, 0.5, 0) }, offset:0, repeats:3),
-			Peseq(5, 8, offset:2, repeats:1),
-		], repeats),
-		\atk, 0.01,
-		\rel, 0.05,
-		\q, Pexprand(1, 50),
-		\pan, Pwhite(-1.0, 1.0)
-	);
+    |repeats|
+    Pbind(
+        \instrument, \arp,
+        \out, 0,
+        \stretch, ~ts,
+        \dur, 1/8,
+        \freq, Pwalk(
+            [
+                110 * Scale.lydian.ratios[4],
+                110 * Scale.lydian.ratios[5],
+                220 * Scale.lydian.ratios[0],
+                220 * Scale.lydian.ratios[2],
+                220 * Scale.lydian.ratios[3],
+                220 * Scale.lydian.ratios[5],
+                220 * Scale.lydian.ratios[6],
+                440 * Scale.lydian.ratios[3],
+                440 * Scale.lydian.ratios[6]
+            ],
+            Prand([2, -1], inf),
+            Prand([1, -1], inf)
+        ),
+        \amp, 0.15 * Pseq([
+            Peseq(3, 8, off: { if(1.0.rand < 0.5, 0.5, 0) }, offset:0, repeats:3),
+            Peseq(5, 8, offset:2, repeats:1),
+        ], repeats),
+        \atk, 0.01,
+        \rel, 0.05,
+        \q, Pexprand(1, 50),
+        \pan, Pwhite(-1.0, 1.0)
+    );
 };
 
 ~pT = Ppar([
-	pKick.value(inf),
-	pHh.value(inf),
-	pSnare.value(inf),
-	pGlitch.value(inf),
-	pMetal.value(inf),
-	pWiggle.value(inf),
-	pPad.value(inf),
-	pArp.value(inf),
+    pKick.value(inf),
+    pHh.value(inf),
+    pSnare.value(inf),
+    pGlitch.value(inf),
+    pMetal.value(inf),
+    pWiggle.value(inf),
+    pPad.value(inf),
+    pArp.value(inf),
 ]);
 
 // Vary wiggle
 p = Pseq([
-	Ppar([
-		pKick.value(2),
-		pHh.value(1),
-		pSnare.value(4),
-		pGlitch.value(16),
-	]),
-	pWiggle.value(1),
-	Ppar([
-		pKick.value(2),
-		pHh.value(1),
-		pSnare.value(4),
-		pGlitch.value(16),
-		pWiggle.value(8),
-	]),
-	Ppar([
-		pKick.value(2 * 4),
-		pHh.value(1 * 4),
-		pSnare.value(4 * 4),
-		pGlitch.value(16 * 4),
-		pWiggle.value(8 * 4),
-		pPad.value(4),
-	]),
-	pMetal.value(1),
-	Ppar([
-		pKick.value(2 * 2),
-		pHh.value(1 * 2),
-		pSnare.value(4 * 2),
-		pMetal.value(8 * 2),
-		pGlitch.value(16 * 2),
-		pWiggle.value(8 * 2 + 1),
-		pArp.value(4 * 2)
-	]),
-	Ppar([
-		pKick.value(2 * 4),
-		pHh.value(1 * 4),
-		pSnare.value(4 * 4),
-		pGlitch.value(16 * 4),
-		pWiggle.value(8 * 4),
-		pArp.value(4 * 3),
-		pPad.value(4),
-	]),
-	Ppar([
-		pKick.value(2 * 1),
-		pHh.value(1 * 1),
-		pSnare.value(4 * 1),
-		pGlitch.value(16 * 1),
-		pWiggle.value(8 * 1 + 1),
-	]),
-]);
-
-
-pWiggle.value(inf).play;
+    Ppar([
+        pKick.value(2),
+        pHh.value(1),
+        pSnare.value(4),
+        pGlitch.value(16),
+    ]),
+    pWiggle.value(1),
+    Ppar([
+        pKick.value(2),
+        pHh.value(1),
+        pSnare.value(4),
+        pGlitch.value(16),
+        pWiggle.value(8),
+    ]),
+    Ppar([
+        pKick.value(2 * 4),
+        pHh.value(1 * 4),
+        pSnare.value(4 * 4),
+        pGlitch.value(16 * 4),
+        pWiggle.value(8 * 4),
+        pPad.value(4),
+    ]),
+    pMetal.value(1),
+    Ppar([
+        pKick.value(2 * 2),
+        pHh.value(1 * 2),
+        pSnare.value(4 * 2),
+        pMetal.value(8 * 2),
+        pGlitch.value(16 * 2),
+        pWiggle.value(8 * 2 + 1),
+        pArp.value(4 * 2)
+    ]),
+    Ppar([
+        pKick.value(2 * 4),
+        pHh.value(1 * 4),
+        pSnare.value(4 * 4),
+        pGlitch.value(16 * 4),
+        pWiggle.value(8 * 4),
+        pArp.value(4 * 3),
+        pPad.value(4),
+    ]),
+    Ppar([
+        pKick.value(2 * 1),
+        pHh.value(1 * 1),
+        pSnare.value(4 * 1),
+        pGlitch.value(16 * 1),
+        pWiggle.value(8 * 1 + 1),
+    ]),
+]).play;
 )
 
 Server.default.stopRecording;
