@@ -1,4 +1,4 @@
-Server.default.options.outDevice_("Multi-Output Device");
+Server.default.options.outDevice_("zoom+speaker");
 
 s.boot;
 s.quit;

@@ -1,4 +1,4 @@
-Server.default.options.outDevice_("Macbook Pro Speakers");
+Server.default.options.outDevice_("blackhole+phones");
 
 s.boot;
 s.quit;
@@ -78,34 +78,69 @@ SynthDef.new(\pad, {
     |freq, atk=0.1, rel=1, amp=0.2, out|
 
     var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
-    var mod = SinOsc.kr(freq / 2, mul:0.25);
+    var mod = (SinOsc.kr(freq / 4) + 1) * freq;
     var car = Mix.ar([
         RLPF.ar(
-            Blip.ar(freq, Pulse.ar(1 * Line.kr(1, 50, rel/2), mul:50) ),
-            freq * 5),
-        LPF.ar(Blip.ar(freq), freq * 10)
+            Resonz.ar(
+                Pulse.ar(freq),
+                [freq / 2, mod, freq * 2],
+                0.5),
+            freq * 15),
+        LPF.ar(Pulse.ar(freq), freq * 10);
     ]) * amp * env;
     Out.ar(out, car.softclip!2);
+}).add;
+
+SynthDef.new(\reverb, {
+    arg in, out,
+        mix = 1, room = 0.99, damp = 0.25,
+        amp = 1.0;
+
+    var sig, reverbed;
+
+    sig = In.ar(in, 2);
+    sig = FreeVerb2.ar(
+        sig[0],
+        sig[1],
+        mix,
+        room,
+        damp
+    );
+
+    sig = sig * amp;
+    sig = sig.softclip;
+
+    Out.ar(out, sig);
+}).add;
+
+SynthDef.new(\noise, {
+    |out, freq=500, atk=0.1, rel=0.1, amp=0.2|
+    var env = EnvGen.kr(
+        Env.perc(atk, rel),
+        doneAction:2);
+    var noise = PinkNoise.ar * env * amp;
+    Out.ar(out, noise.softclip!2);
 }).add;
 
 )
 
 (
 
-var pKick, pHh, pSnare, pMetal, pMetal2,
-pBass, pKarplus, pArp, pPad;
+var pKick, pHh, pSnare, pMetal, pNoise,
+    pBass, pPad, pArp,
+    rbus, rev,
+    tempo;
 
-~ts = 2/3;
+tempo = TempoClock.new(80/60);
 
 pKick = {
     |repeats|
     Pbind(
         \instrument, \kick,
         \out, 0,
-        \stretch, ~ts,
         \dur, 1/8,
         \freq, 75,
-        \amp, 0.75 * Peseq(1, 32, off: { [1, 0].wchoose([0.1, 0.9]) }, repeats:repeats)
+        \amp, 0.5 * Peseq(10, 32, off: { [1, 0].wchoose([0.1, 0.9]) }, repeats:repeats)
     );
 };
 
@@ -114,9 +149,20 @@ pHh = {
     Pbind(
         \instrument, \hh,
         \out, 0,
-        \stretch, ~ts,
         \dur, 1/8,
-        \amp, 0.6 * Peseq(11, 32, off: { [0.6, 0].wchoose([0.25, 0.75]) }, repeats:repeats),
+        \amp, 0.6 * Peseq(11, 32, off: { [1, 0].wchoose([0.25, 0.75]) }, repeats:repeats),
+    );
+};
+
+pNoise = {
+    |repeats|
+    Pbind(
+        \instrument, \noise,
+        \out, 0,
+        \dur, 1/8,
+        \amp, 0.05 * Peseq(9, 32, offset:6, repeats:repeats),
+        \atk, Pexprand(0.01, 0.05),
+        \rel, Pexprand(0.01, 0.05)
     );
 };
 
@@ -125,10 +171,13 @@ pSnare = {
     Pbind(
         \instrument, \snare,
         \out, 0,
-        \stretch, ~ts,
         \dur, 1/8,
-        \atk, 0.001,
-        \amp, 0.1 * Peseq(1, 32, off: { [0.5, 0].wchoose([0.25, 0.75]) }, offset:4, repeats:repeats),
+        \tone, 440,
+        \amp, 0.05 * Pseq([
+            Peseq(1, 16, offset:10, repeats:1),
+            Peseq(3, 8, offset:0, repeats:1),
+            Peseq(2, 8, offset:4, repeats:1),
+        ], repeats),
     );
 };
 
@@ -137,36 +186,14 @@ pMetal = {
     Pbind(
         \instrument, \metal,
         \out, 0,
-        \stretch, ~ts,
         \dur, 1/8,
         \freq, 300,
         \atk, 0.001,
-        \amp, Pseq([
-            Peseq(1, 8, on: 0.5, offset:4, repeats:1),
-            Peseq(1, 8, on: 0.5, offset:6, repeats:1),
+        \amp, 0.5 * Pseq([
+            Peseq(1, 16, offset:10, repeats:1),
+            Peseq(3, 8, offset:0, repeats:1),
+            Peseq(2, 8, offset:4, repeats:1),
         ], repeats),
-        \rel, 0.1
-    );
-};
-
-pMetal2 = {
-    |repeats|
-    Pbind(
-        \instrument, \metal,
-        \out, 0,
-        \stretch, ~ts,
-        \dur, 1/8,
-        // D#4 in midi.
-        \freq, Pseq([
-            63.midicps * Pseq(Scale.mixolydian.ratios, repeats:1),
-            68.midicps * Pseq(Scale.mixolydian.ratios, repeats:1)
-        ], repeats:repeats) * (1 + Pwhite(0.001, 0.05)),
-        \atk, 0.001,
-        \amp, 0.33 * Peseq(
-            3, 16,
-            off:{ [0.5, 0].wchoose([0.1, 0.9]) },
-            offset:4,
-            repeats:repeats),
         \rel, 0.1
     );
 };
@@ -176,53 +203,76 @@ pBass = {
     Pbind(
         \instrument, \bass,
         \out, 0,
-        \stretch, ~ts,
         \dur, 1/8,
         // D#4 in midi.
         \root, 2,
-        \scale, Scale.mixolydian,
-        \octave, Prand([2, 3], repeats:repeats),
-        \degree, Prand([0, 3, 5], repeats:repeats),
+        \scale, Scale.lydian,
+        \octave, Prand([3, 4], repeats:repeats),
+        \degree, Pseq([0, 3, 5], repeats:repeats),
         \atk, 0.001,
-        \amp, 0.065 * (
+        \amp, 0.1 * Pseq([
             Peseq(
-                1, 16,
-                off:{ [1, 0].wchoose([0.1, 0.9]) },
-                offset:4,
-                repeats:repeats) +
-            Peseq(
-                1, 16,
-                offset:7,
-                repeats:repeats)
+                1, 32,
+                offset:6,
+                repeats:1),
+            ],
+            repeats:repeats
         ),
-        \rel, 0.1,
-        \fRel, Pwhite(0.001, 0.1),
-        \width, Pwhite(0.0, 1.0),
-        \rq, Pexprand(1/30, 1/10)
+        \rel, Pkey(\dur, repeats:repeats) * 3/4,
+        \fRel, Ptime().collect({ arg t; (sin(t / 4) + 1) * 0.05 }),
+        \rq, 1
     );
 };
 
-// add more sprinkled as a lead?
+rbus = Bus.audio(s, 2);
+rev = Synth.new(
+    \reverb,
+    [
+        \in, rbus,
+        \out, 0,
+        \mix, 1,
+        \room, 0.99,
+        \amp, 0.05
+    ]
+);
+
 pPad = {
     |repeats|
     Pbind(
         \instrument, \pad,
-        \out, 0,
-        \stretch, ~ts,
-        \dur, 8,
+        \out, rbus,
+        \dur, Pseq([4, 4, 8], repeats:repeats),
         // D#4 in midi.
-        \root, 3,
-        \scale, Scale.mixolydian,
+        \root, 2,
+        \scale, Scale.lydian,
+        \octave, Pseq([5, 5, 4, 4, 5, 5, 3, 3], repeats:repeats),
         \degree, Pseq([
-            [0, 1, 2, 5],
-            [0, 2, 5, 8],
-            [3, 4, 5, 9],
-            [2, 3, 4, 8],
+            Pfuncn({ [0, 1, 3, [4, 6, 7].choose ] }),
+            Pfuncn({ [3, 5, 7, [9, 1, 0].choose ] })
         ], repeats:repeats),
-        \octave, 5,
-        \atk, 0.05,
-        \amp, 0.01,
-        \rel, 2
+        \atk, 0.001,
+        \amp, 0.025,
+        \rel, Pkey(\dur, repeats:repeats) * 3/4,
+    );
+};
+
+pArp = {
+    |repeats|
+    Pbind(
+        \instrument, \pad,
+        \out, 0,
+        \dur, 1/8,
+        // D#4 in midi.
+        \root, 2,
+        \scale, Scale.lydian,
+        \octave, Pseq([6, 6, 5, 5, 6, 6, 4, 4], repeats:repeats),
+        \degree, Pseq([
+            0, 1, 3, Pfuncn({ [4, 6, 7].choose }),
+            3, 5, 6, Pfuncn({ [9, 1, 0].choose }),
+        ], repeats:repeats),
+        \atk, 0.001,
+        \amp, 0.005,
+        \rel, Pkey(\dur, repeats:repeats) * 3/4,
     );
 };
 
@@ -230,12 +280,10 @@ pPad = {
     pKick.value(inf),
     pHh.value(inf),
     pSnare.value(inf),
-    pMetal2.value(inf),
-    pMetal.value(inf),
-    pBass.value(inf),
     pPad.value(inf),
-]).play;
+    pBass.value(inf),
+    pNoise.value(inf),
+    pArp.value(inf),
+]).play(tempo);
 
 )
-
-Server.default.stopRecording;

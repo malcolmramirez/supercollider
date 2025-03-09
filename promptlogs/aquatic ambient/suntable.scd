@@ -1,9 +1,12 @@
-Server.default.options.outDevice_("Macbook Pro Speakers");
+Server.default.options.outDevice_("External Headphones");
 
 s.boot;
 s.quit;
 
 s.scope;
+
+Server.default.record;
+Server.default.stopRecording;
 
 // SynthDefs
 (
@@ -110,9 +113,6 @@ rev = Synth.new(
         \out, 0,
         \amp, 0.75
     ]);
-
-// Add more "waves"
-Scale.phrygian.degrees.postln;
 
 drone = wtosc.value(
     dur:Prand([2, 4, 8], repeats:inf),
