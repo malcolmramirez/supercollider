@@ -173,7 +173,7 @@ pSnare = {
         \out, 0,
         \dur, 1/8,
         \tone, 440,
-        \amp, 0.05 * Pseq([
+        \amp, 0.1 * Pseq([
             Peseq(1, 16, offset:10, repeats:1),
             Peseq(3, 8, offset:0, repeats:1),
             Peseq(2, 8, offset:4, repeats:1),
