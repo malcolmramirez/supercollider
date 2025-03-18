@@ -42,7 +42,7 @@ SynthDef.new(\reverb, {
 
 (
 
-var pPad, pArp,
+var pPad, pBeep,
     rev, rbus,
     tempo;
 
@@ -66,7 +66,10 @@ pPad = {
         \out, rbus,
         \dur, 8,
         \root, 3,
-        \scale, Scale.phrygian,
+        \scale, Pseq([
+            Pseq({Scale.phrygian}!4),
+            Pseq({Scale.lydian}!4),
+        ], repeats:repeats),
         \octave, 4,
         \degree, Pseq([
             [0, 2, 4, 6], [-2, 1, 3, 4], [-5, -2, 2, 5], [-5, -3, 2, 4]
@@ -77,31 +80,27 @@ pPad = {
     );
 };
 
-pArp = {
+pBeep = {
     |repeats|
     Pbind(
         \instrument, \pad,
-        \out, 0,
-        \dur, Pseq([
-            Pseq({1/4}!4),
-            Pseq({1/2}!1),
-            Pseq({1/4}!6),
-            Pseq({1/8}!4),
-        ], repeats:repeats),
+        \out, rbus,
+        \dur, 1/8,
         \root, 3,
-        \scale, Scale.phrygian,
-        \octave, 5,
-        \degree, Pseq([
-            0, 2, 4, 6, -2, 1, 3, 4, -5, -3, 2, 4, 0, 2, 4, 6
+        \scale, Prand([Scale.phrygian, Scale.lydian], repeats:repeats),
+        \octave, 6,
+        \degree, Prand([
+            0, 1, 2, 3, 4, 5, 6
         ], repeats:repeats).trace,
         \atk, 0.01,
-        \amp, 0.05,
-        \rel, Pkey(\dur, repeats:repeats) * 1/8,
+        \amp, 0.025 * Peseq(1, 16, off:{ [0.5, 0].wchoose([0.25, 0.75]) }, repeats:repeats),
+        \rel, 0.05,
     );
 };
 
 ~pT = Ppar([
-    pPad.value(inf)
+    pPad.value(inf),
+    pBeep.value(inf)
 ]).play(tempo);
 
 )

@@ -38,3 +38,46 @@ Peseq : Pattern {
 
     storeArgs { ^[ k, n, on, off, repeats, offset ] }
 }
+
+Pbseq : Pattern {
+
+    var <>list, <>on, <>off, <>repeats, <>offset;
+
+    *new { arg onIndices, steps, on=1, off=\, repeats=1, offset=0;
+        var list;
+
+        list = List.fill(steps, \off);
+        onIndices.do({
+            arg item, i;
+            list.put(item, \on);
+        });
+
+        ^super.newCopyArgs(list, on, off, repeats, offset)
+    }
+
+    embedInStream {
+        arg inval;
+        var item, offsetValue;
+        offsetValue = offset.value(inval);
+        if (inval.eventAt('reverse') == true, {
+            repeats.value(inval).do({ arg j;
+                list.size.reverseDo({ arg i;
+                    item = list.wrapAt(i + offsetValue);
+                    item = if (item == \on, on, off);
+                    inval = item.embedInStream(inval);
+                });
+            });
+        },{
+            repeats.value(inval).do({ arg j;
+                list.size.do({ arg i;
+                    item = list.wrapAt(i + offsetValue);
+                    item = if (item == \on, on, off);
+                    inval = item.embedInStream(inval);
+                });
+            });
+        });
+        ^inval;
+    }
+
+    storeArgs { ^[ list, on, off, repeats, offset ] }
+}
