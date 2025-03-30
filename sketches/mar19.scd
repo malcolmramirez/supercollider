@@ -118,8 +118,35 @@ SynthDef.new(\pad, {
 			Pulse.ar(freq, width:Line.kr(0, 1, rel)),
 			freq * 5),
 		LPF.ar(Pulse.ar(freq, width:Line.kr(0.5, 0, rel)), freq * 10)
-	]) * amp * env;
+	]) * amp;
+
+    sig = Splay.ar([
+        sig * 3/4,
+        Resonz.ar(
+            sig * BrownNoise.ar + PinkNoise.ar,
+            [freq/2, freq, freq*2],
+            Line.kr(0.01, 25, rel)) * 0.01
+    ]) * env;
 	Out.ar(out, sig.tanh!2);
+}).add;
+
+
+SynthDef.new(\bass, {
+
+    arg atk, rel, amp,
+        fAtk=0.001, fRel=0.1, width=0.5, rq=1,
+        freq, out;
+
+    var sig, env, filterEnv;
+
+    env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
+    filterEnv = EnvGen.kr(Env.perc(fAtk, fRel, curve:1)) * (freq * 15) + (freq * 5);
+    sig = RLPF.ar(
+        Pulse.ar(freq, width:width),
+        filterEnv,
+        rq
+    ) * amp * env;
+    Out.ar(out, sig.softclip!2);
 }).add;
 
 )
@@ -141,18 +168,19 @@ Scale.lydian.degrees;
     \ctranspose, 3,
     \degreeSpace, Pif(
         Pkey(\scale) |==| Scale.locrian,
-        [
+        Pseq([
             [0, 2, 6],
             [4, 6, 9],
             [0, 4, 7],
-            [-5, 2, 7]
-        ],
-        [
+            [-5, 2, 6]
+        ]),
+        Pseq([
             [4, 6, 9],
             [0, 3, 6],
             [-2, 3, 9],
-            [-1, 3, 7],
+            [-1, 3, 6],
         ])
+    )
 ).collect({ arg ev; ~harmctx = ev });
 
 // Musical patterns
@@ -227,7 +255,7 @@ Scale.lydian.degrees;
         ~patterns[\hh],
         ~patterns[\metal]
     ]),
-    Pbind(\dur, Prand([1/8, 1/12, 1/16, 1/32], 64))
+    Pbind(\dur, Prand([1/8], 64))
 );
 
 ~patterns[\drum2] = Pchain(
@@ -237,7 +265,7 @@ Scale.lydian.degrees;
         ~patterns[\hh],
         ~patterns[\metal]
     ]),
-    Pbind(\dur, Prand([1/8, 1/12, 1/2, 1/4], 64))
+    Pbind(\dur, Prand([1/8], 64))
 );
 
 ~patterns[\drum3] = Pchain(
@@ -247,7 +275,7 @@ Scale.lydian.degrees;
         ~patterns[\hh],
         ~patterns[\metal]
     ]),
-    Pbind(\dur, Prand([1, 1/6, 1/2, 1/4], 64))
+    Pbind(\dur, Prand([1/8], 64))
 );
 
 ~patterns[\drum] = Pseq([
@@ -260,19 +288,35 @@ Scale.lydian.degrees;
 // -- Harmonic components
 ~patterns[\pad1] = Pbind(
     \instrument, \pad,
-    \dur, Prand([8, 16, 32], 1),
-    #[scale, ctranspose], Pfuncn({ [~harmctx[\scale], ~harmctx[\ctranspose]] }),
+    \dur, 32,
+    #[scale, ctranspose], Pfuncn({ [~harmctx[\scale], ~harmctx[\ctranspose]] }, inf),
     \octave, 4,
-    \degree, Pfuncn({ ~harmctx[\degreeSpace].choose }).trace,
+    \degree, Pfuncn({ ~harmctx[\degreeSpace] }, inf).trace,
     \atk, Pkey(\dur) * 1/4,
-    \legato, 0.5,
+    \legato, 0.1,
     \rel, Pkey(\dur) * 3/4,
     \out, 0,
-    \amp, -48.dbamp
+    \amp, -50.dbamp
 );
 
 ~patterns[\pad] = Pseq([
-    ~patterns[\pad1],
+    Pfindur(32, ~patterns[\pad1])
+]);
+
+~patterns[\bass1] = Pbind(
+    \instrument, \bass,
+    \dur, 1/8,
+    #[scale, ctranspose], Pfuncn({ [~harmctx[\scale], ~harmctx[\ctranspose]] }, inf),
+    \octave, Pseq([4, 5], inf),
+    \degree, Pfuncn({ ~harmctx[\degreeSpace].choose }, inf).trace,
+    \atk, Pkey(\dur) * 1/4,
+    \rel, Pkey(\dur) * 1/4,
+    \out, 0,
+    \amp, -45.dbamp * Pbseq([0, 1, 2, 3, 4], 8, repeats:inf)
+);
+
+~patterns[\bass] = Pseq([
+    Pfindur(32, ~patterns[\bass1])
 ]);
 
 )
@@ -284,6 +328,7 @@ Scale.lydian.degrees;
 Pn(Plazy({ ~patterns[\harmctx] }), inf).play(~tempo, quant: Quant(timingOffset:0.05));
 
 Pn(Plazy({ ~patterns[\drum] }), inf).play(~tempo);
+//Pn(Plazy({ ~patterns[\bass] }), inf).play(~tempo);
 Pn(Plazy({ ~patterns[\pad] }), inf).play(~tempo);
 
 )

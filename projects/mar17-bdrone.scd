@@ -192,7 +192,7 @@ SynthDef.new(\noise, {
     \instrument, \kick,
     \dur, Prand([1/8, 1/4, 1/2], 32),
     \freq, 75,
-    \amp, -15.dbamp * Pbseq([0, 5, 10, 16, 20, 24], 32),
+    \amp, -12.5.dbamp * Pbseq([0, 5, 10, 16, 20, 24], 32),
     \atk, 0.01,
     \dec, 0.2,
     \out, 0
@@ -209,7 +209,7 @@ SynthDef.new(\noise, {
     \instrument, \snare,
     \dur, Prand([1/8, 1/4, 1/2], 32),
     \tone, 1600,
-    \amp, -12.5.dbamp * Pbseq([4, 16], 32),
+    \amp, -10.dbamp * Pbseq([4, 16], 32),
     \atk, 0.001,
     \dec, 0.075);
 
@@ -223,7 +223,7 @@ SynthDef.new(\noise, {
 ~patterns[\hh1] = Pbind(
     \instrument, \hh,
     \dur, Prand([1/16, 1/8, 1/4, 1/2], 32),
-    \amp, -10.dbamp * Pbseq((0..15)*2, 32),
+    \amp, -8.dbamp * Pbseq((0..15)*2, 32),
     \atk, 0.001,
     \dec, 0.005);
 
@@ -252,7 +252,7 @@ SynthDef.new(\noise, {
 ~patterns[\noise1] = Pbind(
     \instrument, \noise,
     \dur, Prand([1/8, 1/4, 1/2], 32),
-    \amp, -35.dbamp * Pbseq(Pfuncn({(0..3) * 5 + 15.rand}), 32),
+    \amp, -32.dbamp * Pbseq(Pfuncn({(0..3) * 5 + 15.rand}), 32),
     \atk, 0.01,
     \dec, Pwhite(0.02, 0.1, 32));
 
@@ -273,7 +273,7 @@ SynthDef.new(\noise, {
     \atk, Pkey(\dur) * 2/4,
     \legato, 0.05,
     \rel, Pkey(\dur) * 3/4,
-    \hmRatio, 1,
+    // \hmRatio, 1,
     \hplev, 2,
     \lplev, 1,
     \out, ~rbus,
