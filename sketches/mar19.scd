@@ -3,6 +3,8 @@ Server.default.options.outDevice_("blackhole+phones");
 s.boot;
 s.quit;
 
+Ndef(\microphone, { SoundIn.ar(0) }).gui;
+
 (
 
 SynthDef.new(\kick, {
@@ -328,7 +330,7 @@ Scale.lydian.degrees;
 Pn(Plazy({ ~patterns[\harmctx] }), inf).play(~tempo, quant: Quant(timingOffset:0.05));
 
 Pn(Plazy({ ~patterns[\drum] }), inf).play(~tempo);
-//Pn(Plazy({ ~patterns[\bass] }), inf).play(~tempo);
+Pn(Plazy({ ~patterns[\bass] }), inf).play(~tempo);
 Pn(Plazy({ ~patterns[\pad] }), inf).play(~tempo);
 
 )

@@ -187,7 +187,7 @@ rev = Synth.new(
         \amp, 0.75
     ]);
 
-~patterns[\pad] = Pbind(
+~patterns[\padbrass] = Pbind(
     \instrument, Prand([\wavepad, \drippad], inf),
     \dur, Pseq([2, 8, 4, Prand([2, 4])], inf),
     #[scale, ctranspose], Pfuncn({ [~harmctx[\scale], ~harmctx[\ctranspose]] }, inf),
@@ -235,7 +235,7 @@ Pn(Plazy({ ~patterns[\harmctx] }), inf).play(~tempo, quant: Quant(timingOffset:0
 Pn(Plazy({ ~patterns[\degreegenerator] }), inf).play(~tempo, quant: Quant(timingOffset:0.05));
 
 //Pn(Plazy({ ~patterns[\bass] }), inf).play(~tempo);
-Pn(Plazy({ ~patterns[\pad] }), inf).play(~tempo);
-Pn(Plazy({ ~patterns[\brass] }), inf).play(~tempo);
+//Pn(Plazy({ ~patterns[\pad] }), inf).play(~tempo);
+Pn(Plazy({ ~patterns[\padbrass] }), inf).play(~tempo);
 
 )
