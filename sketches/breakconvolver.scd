@@ -1,4 +1,5 @@
 b = Buffer.alloc( s, 2048, 1, _.zeroMsg );
+
 (
     x = { arg i_kernel, density = 100, trigPeriod = 5.0, cutOff = 1000, minFreq = 200, maxFreq = 2000;
         var input, trigFreq, recTrig, irSig, convTrig, convTrigs, bufFrames, conv1, conv2;

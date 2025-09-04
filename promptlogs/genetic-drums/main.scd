@@ -27,7 +27,7 @@ var numBeats = targets[0][\kd].size;
             pattern[inst].do({
                 arg val, i;
                 var fitnessScores = List.fill(targets.size, 0);
-                ~targets.do({
+                targets.do({
                     arg target, ti;
                     var diff = (val - target[inst][i]).abs;
                     // higher score for closer match
