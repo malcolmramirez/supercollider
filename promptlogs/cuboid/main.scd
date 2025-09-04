@@ -48,7 +48,7 @@ fork {
             rate = sampleDur / (clock.beatsPerBar / clock.tempo),
             slice;
 
-        var task = Task {
+        Task {
             loop {
                 slices.do {
                     arg item, i;
@@ -69,14 +69,14 @@ fork {
                     }
                 };
             }
-        };
-        task.addDependant(Routine {
-            arg obj, sig;
-            if (sig == \stopped) {
-                s.bind { slice.free };
-            };
-        });
-        task.play(clock);
+        }.addDependant(
+            fork {
+                arg obj, sig;
+                if (sig == \stopped) {
+                    s.bind { slice.free };
+                };
+            }
+        ).play(clock);
     };
 
     var spawnPad = {
@@ -262,7 +262,7 @@ fork {
                 arg step;
                 var hpf = step.linlin(0, numSteps - 1, 1500, 3750),
                     dry = step.linlin(0, numSteps - 1, 0.5, 0),
-                    amp = step.linlin(0, numSteps - 1, 1, 0);
+                    amp = step.linlin(0, numSteps - 1, 1, 0.2);
                 s.bind { drumFx.set(\dry, dry, \hpf, hpf, \amp, amp) };
                 waitTime.wait;
             }
