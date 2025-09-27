@@ -61,9 +61,9 @@ SynthDef.new(\hh, {
 
 
 (
-
+TempoClock.default = TempoClock(80/60);
 p = Ppar([
-		Pbind(
+		/*Pbind(
 			\instrument, \pad,
 			\out, 0,
 		    \dur, 8,
@@ -95,7 +95,7 @@ p = Ppar([
 			\index, 0,
 			\amp, Pexprand(0.02, 0.02),
 			\atk, Pexprand(1, 3),
-			\rel, Pkey(\dur, inf) - Pwhite(0.1, 4)),
+			\rel, Pkey(\dur, inf) - Pwhite(0.1, 4)),*/
 		Pbind(
 			\instrument, \glitch,
 			\out, 0,

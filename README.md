@@ -2,6 +2,6 @@
 
 Supercollider projects and experiments.
 
-Requires https://github.com/supercollider/sc3-plugins, follow install instructions there.
-
-Running some files might require some classes I've made. To run them yourself, you can copy `extensions.sc` into your user extensions dir `Platform.userExtensionDir;`, then recompile the class library.
+Setup
+* Requires [SuperDirt](https://github.com/musikinformatik/SuperDirt). It may be easiest to follow the TidalCycles installation instructions.
+* Under SuperCollider > Preferences > Interpreter, include the absolute path to the `lib` folder in the root of this repo.
