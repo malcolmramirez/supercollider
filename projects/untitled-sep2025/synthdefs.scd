@@ -74,7 +74,7 @@ SynthDef(\playdbuf, {
         bufnum: \buffer.kr,
         rate: \rate.kr(1));
     sig = sig + PitchShift.ar(sig, pitchRatio: 1.25) * 0.5;
-    sig = HPF.ar(sig, 5000);
+    sig = HPF.ar(sig, \hpf.kr(5000));
     sig = sig * Env.perc(0, \playdur.kr, curve: 100).kr(Done.freeSelf);
     sig = sig * \amp.kr(1);
     Out.ar(\out.kr(0), sig ! 2);
@@ -120,7 +120,7 @@ TempoClock.default = TempoClock(150/60);
     var beatDur,
         spawnKick, spawnSyn, spawnStut, spawnNoise, spawnDrums, spawnPad, spawnArp,
         padFx, padBus,
-        kick, syn, noise, drums, pad, arp;
+        kick, syn, noise, drums, drums2, pad, arp;
 
     beatDur = TempoClock.default.beatDur;
 
@@ -162,7 +162,7 @@ TempoClock.default = TempoClock(150/60);
         }
     };
 
-    spawnDrums = { |playmode=\rand, num=0, ratemul=1, slices=16|
+    spawnDrums = { |playmode=\rand, num=0, ratemul=1, slices=16, hpf=5000, amp=(-1.dbamp)|
         var buffer, sampleDur, rate, slice, clock, freeSlice;
 
         clock = TempoClock.default;
@@ -188,7 +188,8 @@ TempoClock.default = TempoClock(150/60);
                         \rate, rate,
                         \start, start,
                         \playdur, playdur,
-                        \amp, -1.dbamp;
+                        \amp, amp,
+                        \hpf, hpf
                     ];
                     s.bind {
                         slice = Synth(\playdbuf, args);
@@ -300,7 +301,7 @@ TempoClock.default = TempoClock(150/60);
 
     16.wait;
     syn.stop;
-    arp = spawnArp.((440 * [1, 3/2, 10/16, 21/19] ++ [1, 3/2, 17/15, 2]));
+    arp = spawnArp.((440 * [1, 3/2, 10/16, 21/19]) ++ (440 * [1, 3/2, 17/15, 2]));
     // fade
 
     16.wait;
@@ -309,8 +310,8 @@ TempoClock.default = TempoClock(150/60);
     32.wait;
     drums.stop;
 
-    drums = spawnDrums.(\seq, 8);
-    16.wait;
+    drums = spawnDrums.(playmode: \rand, num: 0, ratemul: 0.5, amp: -5.dbamp);
+    drums2 = spawnDrums.(playmode: \seq, num: 8, hpf: 500, amp: -1.5.dbamp);
 
 }.fork;
 )

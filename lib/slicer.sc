@@ -1,25 +1,35 @@
 Slicer {
 
-    var args, transitionFunction, currentSlice, waitTime;
+    var args, transitionFunction, currentSlice, waitTime, playing, sems, s;
 
     *new {
-        arg
-        buffer,
-        rateMultiplier=1,
-        startSlice=0,
-        transitionFunction=nil,
-        args=#[],
-        numSlices=16,
-        clock=TempoClock.default;
+        arg buffer,
+            rateMultiplier=1,
+            startSlice=0,
+            transitionFunction=nil,
+            out=0,
+            amp=1,
+            numSlices=16,
+            clock=TempoClock.default,
+            s=Server.default;
 
-        var sampleDur, playbackRate, waitTime;
+        var sampleDur = buffer.numFrames / buffer.sampleRate,
+            playbackRate = sampleDur / (clock.beatsPerBar / clock.tempo) * rateMultiplier,
+            waitTime = (clock.beatsPerBar * (1 / numSlices)),
+            args = [
+                \out, out,
+                \amp, amp,
+                \buffer, buffer,
+                \bufferFrames, buffer.numFrames,
+                \numSlices, numSlices,
+                \rateMultiplier, rateMultiplier,
+                \playbackRate, sampleDur / (clock.beatsPerBar / clock.tempo) * rateMultiplier,
+                \playDur, (playbackRate / numSlices),
+            ];
 
         if (transitionFunction == nil) {
             transitionFunction = {|i| (i + 1) % numSlices};
         };
-        sampleDur = buffer.numFrames / buffer.sampleRate;
-
-        playbackRate = sampleDur / (clock.beatsPerBar / clock.tempo) * rateMultiplier;
 
         SynthDef(\Slicer_playbuf, {
             var sig, start, playDur;
@@ -31,32 +41,55 @@ Slicer {
 
             Out.ar(\out.kr(0), sig ! 2);
         }).add;
+        s.sync;
 
-        waitTime = (clock.beatsPerBar * (1 / numSlices));
-
-        args = args ++ [
+        args = [
+            \out, out,
+            \amp, amp,
             \buffer, buffer,
             \bufferFrames, buffer.numFrames,
             \numSlices, numSlices,
             \rateMultiplier, rateMultiplier,
             \playbackRate, sampleDur / (clock.beatsPerBar / clock.tempo) * rateMultiplier,
             \playDur, (playbackRate / numSlices),
-
         ];
 
-        ^super.newCopyArgs(args, transitionFunction, startSlice, waitTime);
+        ^super.newCopyArgs(
+            args, transitionFunction, startSlice, waitTime, true, (slice: Semaphore(), play: Semaphore()), s);
     }
 
     play {
-        arg s = Server.default;
+        sems[\play].wait;
+        playing = true;
+        sems[\play].signal;
+
         fork {
-            loop {
+            while { playing } {
                 s.bind {
                     Synth(\Slicer_playbuf, args ++ [\slice, currentSlice]);
                 };
+                sems[\slice].wait;
                 currentSlice = transitionFunction.(currentSlice);
+                sems[\slice].signal;
                 waitTime.wait;
             }
         }
+    }
+
+    pause {
+        sems[\play].wait;
+        playing = false;
+        sems[\play].signal;
+    }
+
+    reset {
+        sems[\slice].wait;
+        currentSlice = 0;
+        sems[\slice].signal;
+    }
+
+    stop {
+        this.pause;
+        this.reset;
     }
 }

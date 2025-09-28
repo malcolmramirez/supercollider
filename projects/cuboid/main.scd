@@ -167,7 +167,7 @@ s.waitForBoot {
 
             drums = spawnDrums.();
             arp = spawnArp.();
-            16.wait;
+            //16.wait;
 
             auto = fork {
                 var numSteps, dur, waitTime;

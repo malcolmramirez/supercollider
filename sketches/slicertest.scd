@@ -72,7 +72,13 @@ fork {
         var ratios = {|ixs| ixs.collect({|n| scale.ratios[n]})};
         65 * 5.sqrt * [
             ratios.([ 0, 2, 6]),
-            ratios.([ 0, 1, 5])
+            ratios.([ 0, 1, 5]),
+            ratios.([ 0, 2, 6]),
+            ratios.([ 0, 1, 5]),
+            ratios.([ 6, 1, 3 ]) * [1/2, 1, 1],
+            ratios.([ 5, 1, 2 ]) * [1/2, 1, 1],
+            ratios.([ 6, 1, 3 ]) * [1/2, 1, 1],
+            ratios.([ 5, 1, 2 ]) * [1/2, 1, 1],
             /*
             ratios.([ 0, 2, 5 ]),
             ratios.([ 6, 1, 3 ]) * [1/2, 1, 1],
@@ -123,15 +129,12 @@ fork {
     var chords = { |scale|
         var ratios = {|ixs| ixs.collect({|n| if (n == \) {n} {scale.ratios[n]}})};
         65 * (3/4) * 5.sqrt * [
-            ratios.([ 0, \, \, \]),
-            ratios.([ 0, \, 5, 1]),/*
-            ratios.([ 0, 2, 6, 4]),
-            ratios.([ 0, 1, 5, 3]),*/
-            /*
-            ratios.([ 0, 2, 5 ]),
-            ratios.([ 6, 1, 3 ]) * [1/2, 1, 1],
-            ratios.([ 5, 1, 2 ]) * [1/2, 1, 1],
-            ratios.([ 3, 5, 2 ]) * [1/2, 1/2, 1]*/
+            ratios.([ 0, \, \, \, 0, 5, \, \]),
+            ratios.([ \, \, 5, \]),
+            ratios.([ 0, \, \, \, 0, 5, \, \]),
+            ratios.([ \, \, 5, \]),
+            ratios.([ 0, \, \, \, \, \, 1, 5]),
+            ratios.([ \, \, 1, \]),
         ]
     };
     var scales = [Scale.lydian, Scale.lydian, Scale.lydian, Scale.lydian];
@@ -156,5 +159,6 @@ fork {
         }
     }
 };
+
 
 )
