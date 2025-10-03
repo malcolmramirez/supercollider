@@ -13,9 +13,9 @@ fxBus = Bus.audio(s, 2);
 
 fork {
     SynthDef(\fx, {
-        var in;
-        in = In.ar(\in.kr(0), 2);
-        in = in * \amp.kr(1);
+        var in = In.ar(\in.kr(0), 2);
+        in = HPF.ar(in, \hpf.kr(5000));
+        in =
         Out.ar(\out.kr(0), in);
     }).add;
     s.sync;
@@ -23,7 +23,14 @@ fork {
     slicer = Slicer.new(buffer: buf, rateMultiplier: 1, out: fxBus);
     fx = Synth(\fx, [\in, fxBus]);
     auto = Automator(fx);
-    auto.run(16, (amp: (xrange: [0, 8*pi], from: 0.25, to: 0.75, func: {|x| cos(x)})));
+    auto.run(32, [
+        [
+            \param, \hpf,
+            \func, {|x| sin(x)},
+            \over, [0, 32*pi],
+            \range, [100, 5000]
+        ]
+    ]);
     slicer.play;
 }
 
