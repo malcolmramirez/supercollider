@@ -83,55 +83,47 @@ fork {
     kick = Cycle[
         \def -> \kick,
         \t_gate -> Euc(5, 16),
-        \atk -> Alt(0.01, 0.025, 0.001, 0.01)
+        \atk -> Euc(5, 16, on: Alt(0.01, 0.025, 0.001, 0.01))
     ]
-    .run(0.25);
+    .run;
 
     hh = Cycle[
         \def -> \hh,
         \t_gate -> Euc(11, 16)
     ]
-    .run(0.25);
+    .run;
 
     metal = Cycle[
         \def -> \metal,
         \t_gate -> Euc(2, 16, 4)
     ]
-    .run(0.25);
+    .run;
 
     bass = Cycle[
         \def -> \bass,
-        \t_gate -> Euc(7, 16),
-        \freq -> {55 * Scale.todi.ratios.choose}
+        \t_gate -> Alt(Euc(7, 16), Euc(11, 16, 1)),
+        \freq -> Euc(7, 16, on: {55})
     ]
-    .run(0.25);
+    .run;
 
     16.wait;
-    bass.stop;
-    metal.stop;
 
-    bass = Cycle[
-        \def -> \bass,
-        \t_gate -> Euc(5, 16, 2),
-        \freq -> {35 * Scale.todi.ratios.choose}
-    ]
-    .run(0.25);
+    bass << (
+        \freq -> Euc(7, 16, on: Alt(35, 55, 55, 55))
+    );
 
-    metal = Cycle[
-        \def -> \metal,
-        \t_gate -> Alt(Euc(4, 16, 2), Euc(3, 16, 3))
-    ]
-    .run(0.25);
+    metal << (
+        \t_gate -> Alt(Euc(2, 16, 6), Euc(3, 16, 3))
+    );
 
     16.wait;
-    bass.stop;
 
-    bass = Cycle[
-        \def -> \bass,
-        \t_gate -> Euc(7, 16),
-        \freq -> {55 * Scale.todi.ratios.choose}
-    ]
-    .run(0.25);
+    kick << (
+        \t_gate -> Euc(3, 8)
+    );
+
+    hh << (
+        \t_gate -> Euc(5, 16, 4)
+    );
 };
 )
-

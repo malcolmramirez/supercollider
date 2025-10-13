@@ -1,12 +1,13 @@
 Cycle {
     var <>synth;
+    var <>speed;
     var bindings;
     var clock;
     var s;
     var <>stopped;
 
-    *new { |synth, clock=(TempoClock.default), s=(Server.default)|
-        ^super.newCopyArgs(synth, Dictionary[], clock, s, false);
+    *new { |synth, tempo=(TempoClock.default.tempo), s=(Server.default)|
+        ^super.newCopyArgs(synth, 1, Dictionary[], TempoClock(tempo), s, false);
     }
 
     add { |assoc|
@@ -20,71 +21,85 @@ Cycle {
             ^this;
         };
 
-        if (assoc.value.isKindOf(SequenceableCollection)) {
-            var flattened = [];
-            var flattenHelper = { |seq, acc, stepSize|
-                seq.do { |item|
-                    if (item.isKindOf(SequenceableCollection)) {
-                        flattenHelper.(item, acc, stepSize * item.size.reciprocal);
-                    } {
-                        flattened = flattened.add((val: item, sched: acc.get));
-                        acc.value = acc.value + stepSize;
-                    };
-                }
-            };
-            var list = assoc.value;
-            flattenHelper.(list, `0, list.size.reciprocal);
-            flattened.postln;
-            bindings[assoc.key] = flattened;
+        if (assoc.key == \speed) {
+            this.speed = assoc.value;
             ^this;
         };
 
         bindings[assoc.key] = assoc.value;
     }
 
-    run { |length=8|
-        var timeline = Dictionary[];
-        var putInTimeline = { |time, param, val|
-            if (val != \) {
-                var timelineEntry = timeline.atFail(time, []);
-                timelineEntry = timelineEntry.add(param);
-                timelineEntry = timelineEntry.add(val);
-                timeline[time] = timelineEntry;
+    at { |...associations|
+        associations.do { |a| this.add(a) }
+    }
+
+    flattenPattern { |pattern, stepSize, offset|
+        var result = [];
+
+        var eval = pattern.value;
+
+        if (eval.isKindOf(SequenceableCollection)) {
+            var subStepSize = stepSize / eval.size;
+            eval.do { |item, i|
+                var subOffset = offset + (i * subStepSize);
+                result = result ++ this.flattenPattern(item, subStepSize, subOffset);
             };
+        } {
+            result = result.add((time: offset, val: eval));
         };
 
-        this.stopped = false;
+        ^result;
+    }
+
+    buildTimeline { |length|
+        var timeline = Dictionary[];
 
         bindings.pairsDo { |param, binding|
-            if (binding.isKindOf(SequenceableCollection)) {
-                binding.do { |item|
-                    putInTimeline.(item[\sched] * length, param, item.val);
+            var events = this.flattenPattern(binding, length, 0);
+            events.do { |event|
+                if (event.val != \) {
+                    var time = event.time;
+                    var timelineEntry = timeline.atFail(time, []);
+                    timelineEntry = timelineEntry.add(param);
+                    timelineEntry = timelineEntry.add(event.val);
+                    timeline[time] = timelineEntry;
                 };
-            } {
-                "hellp".postln;
-                putInTimeline.(0, param, binding);
             };
         };
 
-        // construct a timeline and run the cycles
-        fork {
+        ^timeline;
+    }
+
+    run { |length=4|
+
+        length = length * speed.reciprocal;
+
+        // Start the first cycle
+        clock.sched(0, {
+            var timeline = this.buildTimeline(length);
+
             timeline.pairsDo { |time, values|
                 clock.sched(time, {
                     s.bind {
                         s.listSendMsg(
-                            ["/n_set", this.synth.nodeID] ++
-                            values.collect{|v| v.value;});
-                    };
-                    if (not(this.stopped)) {
-                        length;
+                            ["/n_set", this.synth.nodeID] ++ values
+                        );
                     };
                 });
             };
-        }
+
+            length;
+        });
+    }
+
+    leftShift { |...associationOverrides|
+        this.stop;
+        associationOverrides.do { |a| this.add(a) };
+        this.run;
     }
 
     stop {
-        this.stopped = true;
+        clock.clear;
     }
 }
 
@@ -104,24 +119,26 @@ Alt {
 }
 
 Euc {
-    var items;
-    var ptr;
+    var k;
+    var n;
     var o;
+    var on;
+    var off;
 
     *new { |k, n, o=0, on=1, off=\|
+        ^super.newCopyArgs(k, n, o, on, off);
+    }
+
+    value {
         var items = (
             (k / n * (0..n - 1))
             .floor
             .differentiate
             .asInteger
-            .min(1)[0] = if (k <= 0) { off } { on }
+            .min(1)[0] = if (k <= 0) { 0 } { 1 }
         );
-        ^super.newCopyArgs(items, o);
-    }
-
-    value {
-        var tmp = items[ptr];
-        ptr = (ptr + 1) % items.size;
-        ^tmp.value;
+        items = items.rotate(o.value);
+        items = items.collect({|i| if (i == 0) { off.value } { on.value }});
+        ^items;
     }
 }
