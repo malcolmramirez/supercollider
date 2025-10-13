@@ -7,7 +7,7 @@ Slicer {
 
         var sampleDur = buffer.numFrames / buffer.sampleRate;
         var playbackRate = sampleDur / (clock.beatsPerBar / clock.tempo) * rateMultiplier;
-        var waitTime = (clock.beatsPerBar * (1 / numSlices));
+        var waitTime = (clock.beatsPerBar * (1 / numSlices)) * rateMultiplier.reciprocal;
         var args = [
                 \out, out,
                 \amp, amp,
@@ -16,7 +16,7 @@ Slicer {
                 \numSlices, numSlices,
                 \rateMultiplier, rateMultiplier,
                 \playbackRate, sampleDur / (clock.beatsPerBar / clock.tempo) * rateMultiplier,
-                \playDur, (playbackRate / numSlices),
+                \playDur, waitTime * clock.beatDur,
             ];
 
         if (transitionFunction == nil) {
@@ -24,7 +24,7 @@ Slicer {
         };
 
         SynthDef(\Slicer_playbuf, {
-            var start = \bufferFrames.kr * (\slice.kr / \numSlices.kr) * \rateMultiplier.kr;
+            var start = \bufferFrames.kr * (\slice.kr / \numSlices.kr);
             var sig = PlayBuf.ar(numChannels: 2, startPos: start, bufnum: \buffer.kr, rate: \playbackRate.kr);
             sig = sig * \amp.kr(1);
             sig = sig * Env.perc(0, \playDur.kr, curve: 100).kr(Done.freeSelf);

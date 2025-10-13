@@ -1,7 +1,6 @@
 
 
 (
-~tempo = 150/60;
 
 SynthDef.new(\kick, {
     var sig, modsig, env, freqEnv;
@@ -54,19 +53,32 @@ SynthDef.new(\kick, {
 
     Out.ar(\out.kr(0), sig);
 }).add;
+
+SynthDef.new(\bass, {
+    |out, freq=500, atk=0.1, rel=1, amp=0.2, fAtk=0.001, fRel=0.1, width=0.5, rq|
+    var env = EnvGen.kr(Env.perc(atk, rel), doneAction:2);
+    var filterEnv = EnvGen.kr(Env.perc(fAtk, fRel, curve:1)) * (freq * 30) + (freq * 10);
+    var acid = RLPF.ar(
+        Pulse.ar(freq, width:width),
+        filterEnv,
+        rq
+    ) * amp * env;
+    Out.ar(out, acid!2);
+}).add;
+
+
 )
 
 (
 var sem = Semaphore(3);
-var drumSem = Semaphore(1);
 
 var hipbus = Bus.audio(s, 2);
-TempoClock.default = TempoClock(~tempo);
+
+var tempo = 150/60;
+TempoClock.default = TempoClock(tempo);
 
 fork {
-    var hip, hipauto, hibreak, mainbreak, kick, kicksig, pads;
-
-    kicksig = Semaphore(-3);
+    var hip, hipauto, hibreak, mainbreak, kick, kicksig, pads, hibreaks = [\,\];
 
     s.bind {
         hip = Synth.tail(s, \hip, [\in, hipbus, \hpf, 2000]);
@@ -98,14 +110,14 @@ fork {
                     3/11 -> [17/11]
                 ];
                 var freq = base.choose * curr;
-                var relInSec = (~tempo.reciprocal * 16);
+                var relInSec = (tempo.reciprocal * 16);
                 var waitTime;
                 sem.wait;
                 ("playing" + freq).postln;
                 s.bind {
                     Synth(\pad, [
                         \freq, freq,
-                        \amp, exprand(0.05, 0.1),
+                        \amp, exprand(-7.0, -3.0).dbamp,
                         \atk, exprand(relInSec/8, relInSec/4),
                         \rel, relInSec
                     ]);
@@ -120,58 +132,62 @@ fork {
         }
     };
 
-    hibreak = fork {
-        Slicer.new(
+    fork {
+        hibreaks[0] = Slicer.new(
             ~dirt.buffers[\break][8],
             1,
             transitionFunction:{|x| (x-exprand(1, 2) + exprand(1, 4)) % 64},
             numSlices: 32,
-            amp: 0.1,
+            amp: 2.dbamp,
             out: hipbus).play;
         4.wait;
-        Slicer.new(
+        hibreaks[1] = Slicer.new(
             ~dirt.buffers[\break][8],
             0.5,
             transitionFunction:{|x| (x-exprand(1, 2) + exprand(1, 4)) % 64},
             numSlices: 32,
-            amp: 0.1,
+            amp: 2.dbamp,
             out: hipbus).play;
     };
+
     mainbreak = Slicer.new(
         ~dirt.buffers[\break][23],
         0.5,
         numSlices: 64,
-        amp: 0.15,
+        amp: 1,
         out: hipbus).play;
     8.wait;
 
     kick = fork {
-        loop {
-            s.bind {
-                Synth(\kick, [\amp, 0.6]);
-            };
-            1.wait;
-        }
-    };
-    16.wait;
-
-    kick.stop;
-
-    kick = fork {
         inf.do { |i|
             s.bind {
-                Synth(\kick, [\amp, 0.6]);
+                Synth(\kick, [\amp, 5.dbamp]);
             };
             if ((i % 16 == 0) && (i != 0)) {
                 0.5.wait;
                 s.bind {
-                    Synth(\kick, [\amp, 0.6]);
+                    Synth(\kick, [\amp, 5.dbamp]);
                 };
                 0.5.wait;
             } {
                 1.wait;
-            }
+            };
         }
     };
+
+    64.wait;
+
+    hibreaks.do{|bk| bk.stop};
+
+    16.wait;
+
+    mainbreak.stop;
+
+    8.wait;
+
+    kick.stop;
+
+    pads.do{ |pad| pad.stop};
+    hipauto.stop;
 }
 )
