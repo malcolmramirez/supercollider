@@ -74,6 +74,17 @@ SynthDef.new(\bass, {
 }).add;
 )
 
+)
+
+(
+~seq = TimeSeq([1, [1, 2]]);
+)
+
+(
+~seq.next;
+
+)
+
 (
 TempoClock.default = TempoClock(150/60);
 
@@ -87,12 +98,12 @@ fork {
         \def -> \kick,
         \spawn -> Euc(5, 16),
         \speed -> 1,
-        \atk -> 0.001
+        \atk -> Alt(0.001, [Alt(0.05, 0.0001), 0.025])
     ].run;
 
     hh = Cycle[
         \def -> \hh,
-        \spawn -> Euc(11, 16)
+        \spawn -> Euc({7 + 6.rand}, 16)
     ].run;
 
     metal = Cycle[
@@ -102,11 +113,9 @@ fork {
 
     bass = Cycle[
         \def -> \bass,
-        \spawn -> [1, 0],
-        \freq -> 55
+        \spawn -> [1, 0, Alt(0, 1, 0), Alt(1, 0, [1, 1, 1, 1])],
+        \freq -> [35, 55]
     ].run;
-
-    16.wait;
 }
 )
 

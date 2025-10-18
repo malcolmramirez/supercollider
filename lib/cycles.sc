@@ -79,7 +79,7 @@ TimelineEvent {
 }
 
 Cycle {
-    var cycleSynth; // all available parameters
+    var cycleSynth;
     var params;
     var clock;
 
@@ -91,67 +91,103 @@ Cycle {
     }
 
     add { |paramBinding|
-        params[paramBinding.key] = paramBinding.value;
-    }
-
-    flattenBinding { |binding, stepSize, offset|
-        var result = [];
-
-        var bindingValue = binding.value;
-
-        if (bindingValue.isKindOf(SequenceableCollection)) {
-            var subStepSize = stepSize / bindingValue.size;
-            bindingValue.do { |binding, i|
-                var subOffset = offset + (i * subStepSize);
-                result = result ++ this.flattenBinding(binding, subStepSize, subOffset);
-            };
-        } {
-            result = result.add((time: offset, binding: bindingValue));
-        };
-
-        ^result;
-    }
-
-    buildTimeline {
-        var timeline = Dictionary[];
-
-        params.pairsDo { |param, binding|
-            var events = this.flattenBinding(binding, 1, 0);
-            events.do { |event|
-                var time = event.time;
-                var timelineEvent = timeline.atFail(time, TimelineEvent());
-                timelineEvent[param] = event.binding;
-                timeline[time] = timelineEvent;
-            };
-        };
-
-        ^timeline;
+        params[paramBinding.key] = TimeSeq(paramBinding.value);
     }
 
     run {
         var length = 4;
+        var position = 0;
         var originalTempo = clock.tempo;
 
         clock.sched(0, {
-            var timeline = this.buildTimeline();
-
-            timeline.pairsDo { |relativeTime, event|
-                var time = relativeTime * length;
-
-                clock.sched(time, {
-                    if (notNil(event.speed)) {
-                        clock.tempo = originalTempo * event.speed;
+            var findMinTime = {
+                var minTime = inf;
+                params.pairsDo { |param, timeSeq|
+                    var event = timeSeq.peek;
+                    if (notNil(event)) {
+                        minTime = min(minTime, event.time);
                     };
-                    cycleSynth.ingestEvent(event);
-                });
+                };
+                minTime;
             };
 
-            length;
+            var collectEventsAt = { |time|
+                var timelineEvent = TimelineEvent();
+                params.pairsDo { |param, timeSeq|
+                    var event = timeSeq.peek;
+                    if (notNil(event)) {
+                        if (event.time == time) {
+                            timelineEvent[param] = timeSeq.next.binding;
+                        };
+                    };
+                };
+                timelineEvent;
+            };
+
+            var waitTime;
+            var currentTime = findMinTime.();
+            var event = collectEventsAt.(currentTime);
+            var nextTime = findMinTime.();
+
+            position = currentTime;
+            waitTime = (nextTime - position);
+
+            if (notNil(event.speed)) {
+                clock.tempo = originalTempo * event.speed;
+            };
+            cycleSynth.ingestEvent(event);
+
+            (waitTime * length);
         });
     }
 
     stop {
         clock.clear;
+    }
+}
+
+TimeSeq {
+    var eventStream;
+    var peeked;
+
+    *new { |items, stepSize=1|
+        var dfs = { |curr, stepSize, totalSteps|
+            var currValue = curr.value;
+            if (currValue.isKindOf(SequenceableCollection)) {
+                var subStepSize = stepSize / currValue.size;
+                currValue.do { |binding, i|
+                    dfs.(binding, subStepSize, totalSteps);
+                };
+            } {
+                (time: totalSteps.get, binding: currValue).yield;
+                totalSteps.value = totalSteps.value + stepSize;
+            };
+        };
+        var eventStream = r {
+            var totalSteps = `0;
+            loop {
+                dfs.(items, stepSize, totalSteps);
+            };
+        };
+        ^super.newCopyArgs(eventStream, nil);
+    }
+
+    peek {
+        if (notNil(peeked)) {
+            ^peeked;
+        };
+        peeked = this.next;
+        ^peeked;
+    }
+
+    next {
+        if (isNil(peeked)) {
+            ^eventStream.next;
+        } {
+            var tmp = peeked;
+            peeked = nil;
+            ^tmp;
+        };
     }
 }
 
@@ -182,12 +218,14 @@ Euc {
     }
 
     value {
+        var nVal = n.value;
+        var kVal = k.value;
         var items = (
-            (k / n * (0..n - 1))
+            (kVal / nVal * (0..nVal - 1))
             .floor
             .differentiate
             .asInteger
-            .min(1)[0] = if (k <= 0) { 0 } { 1 }
+            .min(1)[0] = if (kVal <= 0) { 0 } { 1 }
         );
         items = items.rotate(o.value);
         items = items.collect({ |i|
