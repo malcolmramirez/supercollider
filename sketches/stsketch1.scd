@@ -1,20 +1,25 @@
 (
-TempoClock.default = TempoClock(150/60);
-b = ~dirt.buffers[\soundthread][0];
+SynthDef.new(\pad, {
+    var env = Env.perc(\atk.kr(0.1), \rel.kr(1)).ar(gate: \t_gate.kr(0));
 
+    var ampOsc = (SinOsc.kr(0.01) + 1) * \amp.kr(1);
+	var car = Mix.ar(
+		RLPF.ar(
+			Pulse.ar(\freq.kr, SinOsc.ar(5) * 0.15 + 0.5), \lpf.kr(500))
+	) * ampOsc * env;
 
-fork {
-    Slicer(~dirt.buffers[\soundthread][0], 1/8, amp: 10).play;
-    Slicer(~dirt.buffers[\break][13], 0.5, amp: 0.5, numSlices: 64).play;
-}
-)
+    car = HPF.ar(car, \hpf.kr(1000));
 
-(
+	car = car.tanh;
+
+	Out.ar(\out.kr(0), Clip.ar(car!2));
+}).add;
+
 SynthDef.new(\kick, {
     var sig, modsig, env, freqEnv;
 
     env = Env.perc(
-        \atk.kr(0.001), \rel.kr(0.25), curve: -2).ar(gate: \t_gate.kr(0));
+        \atk.kr(0.001), \rel.kr(0.25), curve: -2).ar(Done.freeSelf);
 
     modsig = Saw.ar(\mod.kr(50)) / 4 + 1;
 
@@ -24,14 +29,14 @@ SynthDef.new(\kick, {
     sig = sig!2;
 
     Out.ar(\out.kr(0), sig);
-}).add;
+}).play;
 
 
 SynthDef.new(\hh, {
 	|out, tone=80, atk=0.005, dec=0.05, amp=1|
 	var env = EnvGen.kr(
 		Env.new([0, 1, 0], [atk, dec], curve:[-6, -6]),
-		gate: \t_gate.kr(0));
+		doneAction: 2);
 
 	// Make a square wave
 	var pulses = all {:Pulse.ar(tone * m), m <- [1, 2.17, 3.31, 4.16, 5.43, 6.79, 8.12] };
@@ -44,7 +49,7 @@ SynthDef.new(\hh, {
 
 SynthDef.new(\metal, {
     |out, freq=500, mRatio=1, cRatio=1, index=1, atk=0.0025, rel=0.25, amp=1, room=0.5, damp=0.5|
-    var env = EnvGen.kr(Env.perc(atk, rel), gate: \t_gate.kr(0));
+    var env = EnvGen.kr(Env.perc(atk, rel), doneAction: 2);
     var mod = SinOsc.ar(freq, mul:freq * mRatio * index);
     var car = RLPF.ar(
         Pulse.ar(freq * cRatio + mod, mul:amp),
@@ -58,8 +63,8 @@ SynthDef.new(\metal, {
 
 SynthDef.new(\bass, {
     |out, freq=500, atk=0.1, rel=1, amp=0.2, fAtk=0.0001, fRel=0.1, width=0.5, rq=0.1|
-    var env = EnvGen.kr(Env.perc(atk, rel), gate: \t_gate.kr(0));
-    var filterEnv = EnvGen.kr(Env.perc(fAtk, fRel, curve:1), gate: \t_gate.kr(0)) * (freq * 30) + (freq * 10);
+    var env = EnvGen.kr(Env.perc(atk, rel), doneAction: 2);
+    var filterEnv = EnvGen.kr(Env.perc(fAtk, fRel, curve:1)) * (freq * 30) + (freq * 10);
     var acid = RLPF.ar(
         Pulse.ar(freq, width:width),
         filterEnv,
@@ -68,8 +73,6 @@ SynthDef.new(\bass, {
     Out.ar(out, acid!2);
 }).add;
 )
-
-FreqScope.new(400, 200, 0, server: s);
 
 (
 TempoClock.default = TempoClock(150/60);
@@ -82,48 +85,90 @@ fork {
 
     kick = Cycle[
         \def -> \kick,
-        \t_gate -> Euc(5, 16),
-        \atk -> Euc(5, 16, on: Alt(0.01, 0.025, 0.001, 0.01))
-    ]
-    .run;
+        \spawn -> Euc(5, 16),
+        \speed -> 1,
+        \atk -> 0.001
+    ].run;
 
     hh = Cycle[
         \def -> \hh,
-        \t_gate -> Euc(11, 16)
+        \spawn -> Euc(11, 16)
+    ].run;
+
+    metal = Cycle[
+         \def -> \metal,
+         \spawn -> Euc(2, 16, 4)
+    ].run;
+
+    bass = Cycle[
+        \def -> \bass,
+        \spawn -> [1, 0],
+        \freq -> 55
+    ].run;
+
+    16.wait;
+}
+)
+
+    /*hh = Cycle[
+        \def -> \hh,
+        \spawn -> Euc(11, 16)
     ]
     .run;
 
     metal = Cycle[
-        \def -> \metal,
-        \t_gate -> Euc(2, 16, 4)
-    ]
-    .run;
-
-    bass = Cycle[
+         \def -> \metal,
+         \spawn -> Euc(2, 16, 4)
+    ].run;*/
+    //
+    /*// */
+    //
+    /*bass = Cycle[
         \def -> \bass,
-        \t_gate -> Alt(Euc(7, 16), Euc(11, 16, 1)),
-        \freq -> Euc(7, 16, on: {55})
-    ]
-    .run;
-
-    16.wait;
-
-    bass << (
-        \freq -> Euc(7, 16, on: Alt(35, 55, 55, 55))
-    );
-
-    metal << (
-        \t_gate -> Alt(Euc(2, 16, 6), Euc(3, 16, 3))
-    );
-
-    16.wait;
-
-    kick << (
-        \t_gate -> Euc(3, 8)
-    );
-
-    hh << (
-        \t_gate -> Euc(5, 16, 4)
-    );
+        \spawn -> Alt(Euc(7, 16), Euc(11, 16, 1)),
+        \freq -> 55
+    ].run;
+    //
+    // 16.wait;
+    //
+    // bass << (
+    //     \freq -> Euc(6, 16, 2, on: Alt(35, 35, 35, 55))
+    // );
+    //
+    // metal << (
+    //     \t_gate -> Alt(Euc(2, 16, 6), Euc(3, 16, 3))
+    // );
+    //
+    // 16.wait;
+    //
+    // kick << (
+    //     \t_gate -> Euc(3, 8)
+    // );
+    //
+    // hh << (
+    //     \t_gate -> Euc(5, 16, 4)
+    // );
+    //
+    // 16.wait;
+    //
+    // bass.stop;
+    //
+    // kick << (
+    //     \t_gate -> Euc(5, 16)
+    // );
+    //
+    // hh << (
+    //     \t_gate -> Euc(11, 16)
+    // );
+    //
+    // 16.wait;
+    //
+    // bass << (
+    //     \freq -> Euc(2, 16, 3, on: Alt(35, 35, 35, 55))
+    // );
+    //
+    // 16.wait;
+    //
+    // [kick, bass, hh, metal].collect{_.stop}
 };
 )

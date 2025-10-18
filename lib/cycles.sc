@@ -1,101 +1,153 @@
-Cycle {
-    var <>synth;
+CycleSynth {
+    var server;
+    var <>synthDefName;
+    var <>synthDef;
+    var <>synthDefArgs;
+
+    *new { |synthDef|
+        ^super.newCopyArgs(Server.default, nil, nil, Dictionary[]);
+    }
+
+    ingestEvent { |event|
+        var oldSynthDefArgs = synthDefArgs;
+        synthDefArgs.putAll(event.synthDefArgs);
+
+        if (notNil(event.synthDef)) {
+            this.synthDefName = event.synthDef;
+        };
+
+        if (notNil(event.spawn) && notNil(synthDefName)) {
+            server.bind {
+                this.synthDef = Synth.new(synthDefName, synthDefArgs.asPairs, server);
+                NodeWatcher.register(synthDef);
+            }
+            ^this;
+        };
+
+        if (notNil(synthDef){_.isRunning} && (oldSynthDefArgs != synthDefArgs)) {
+            server.bind {
+                var msg = ["/n_set", synthDef.nodeID] ++ synthDefArgs.asPairs;
+                server.listSendMsg(msg);
+            };
+        };
+    }
+}
+
+TimelineEvent {
     var <>speed;
-    var bindings;
+    var <>spawn;
+    var <>synthDef;
+    var <>synthDefArgs;
+
+    *new { |speed, spawn, synthDef, synthArgs|
+        ^super.newCopyArgs(nil, nil, nil, Dictionary[]);
+    }
+
+    put { |paramName, paramBinding|
+        var empty = { |b| (b == \) || isNil(b) };
+
+        if (empty.(paramBinding)) {
+            ^this;
+        };
+
+        if (paramName == \speed) {
+            this.speed = paramBinding;
+            ^this;
+        };
+
+        if ((paramName == \spawn) && (paramBinding != 0)) {
+            this.spawn = paramBinding;
+            ^this;
+        };
+
+        if (paramName == \def) {
+            this.synthDef = paramBinding;
+            ^this;
+        };
+
+        synthDefArgs[paramName] = paramBinding;
+        ^this;
+    }
+
+    postln {
+        ("TimelineEvent\n" ++
+            "\tspeed=" ++ this.speed ++ "\n" ++
+            "\tspawn=" ++ this.spawn ++ "\n" ++
+            "\tsynthDef=" ++ this.synthDef ++ "\n" ++
+            "\tsynthDefArgs=" ++ this.synthDefArgs).postln;
+    }
+}
+
+Cycle {
+    var cycleSynth; // all available parameters
+    var params;
     var clock;
-    var s;
-    var <>stopped;
 
-    *new { |synth, tempo=(TempoClock.default.tempo), s=(Server.default)|
-        ^super.newCopyArgs(synth, 1, Dictionary[], TempoClock(tempo), s, false);
+    *new {
+        ^super.newCopyArgs(
+            CycleSynth(),
+            Dictionary[],
+            TempoClock(TempoClock.default.tempo));
     }
 
-    add { |assoc|
-        if (assoc.key == \def) {
-            this.synth = Synth(assoc.value);
-            ^this;
-        };
-
-        if (assoc.key == \synth) {
-            this.synth = assoc.value;
-            ^this;
-        };
-
-        if (assoc.key == \speed) {
-            this.speed = assoc.value;
-            ^this;
-        };
-
-        bindings[assoc.key] = assoc.value;
+    add { |paramBinding|
+        params[paramBinding.key] = paramBinding.value;
     }
 
-    at { |...associations|
-        associations.do { |a| this.add(a) }
-    }
-
-    flattenPattern { |pattern, stepSize, offset|
+    flattenBinding { |binding, stepSize, offset|
         var result = [];
 
-        var eval = pattern.value;
+        var bindingValue = binding.value;
 
-        if (eval.isKindOf(SequenceableCollection)) {
-            var subStepSize = stepSize / eval.size;
-            eval.do { |item, i|
+        if (bindingValue.isKindOf(SequenceableCollection)) {
+            var subStepSize = stepSize / bindingValue.size;
+            bindingValue.do { |binding, i|
                 var subOffset = offset + (i * subStepSize);
-                result = result ++ this.flattenPattern(item, subStepSize, subOffset);
+                result = result ++ this.flattenBinding(binding, subStepSize, subOffset);
             };
         } {
-            result = result.add((time: offset, val: eval));
+            result = result.add((time: offset, binding: bindingValue));
         };
 
         ^result;
     }
 
-    buildTimeline { |length|
+    buildTimeline {
         var timeline = Dictionary[];
 
-        bindings.pairsDo { |param, binding|
-            var events = this.flattenPattern(binding, length, 0);
+        params.pairsDo { |param, binding|
+            var events = this.flattenBinding(binding, 1, 0);
             events.do { |event|
-                if (event.val != \) {
-                    var time = event.time;
-                    var timelineEntry = timeline.atFail(time, []);
-                    timelineEntry = timelineEntry.add(param);
-                    timelineEntry = timelineEntry.add(event.val);
-                    timeline[time] = timelineEntry;
-                };
+                var time = event.time;
+                var timelineEvent = timeline.atFail(time, TimelineEvent());
+                timelineEvent[param] = event.binding;
+                timeline[time] = timelineEvent;
             };
         };
 
         ^timeline;
     }
 
-    run { |length=4|
+    run {
+        var length = 4;
+        var originalTempo = clock.tempo;
 
-        length = length * speed.reciprocal;
-
-        // Start the first cycle
         clock.sched(0, {
-            var timeline = this.buildTimeline(length);
+            var timeline = this.buildTimeline();
 
-            timeline.pairsDo { |time, values|
+            timeline.pairsDo { |relativeTime, event|
+                var time = relativeTime * length;
+
                 clock.sched(time, {
-                    s.bind {
-                        s.listSendMsg(
-                            ["/n_set", this.synth.nodeID] ++ values
-                        );
+                    if (notNil(event.speed)) {
+                        clock.tempo = originalTempo * event.speed;
                     };
+                    cycleSynth.ingestEvent(event);
                 });
             };
 
             length;
         });
-    }
-
-    leftShift { |...associationOverrides|
-        this.stop;
-        associationOverrides.do { |a| this.add(a) };
-        this.run;
     }
 
     stop {
@@ -125,7 +177,7 @@ Euc {
     var on;
     var off;
 
-    *new { |k, n, o=0, on=1, off=\|
+    *new { |k, n, o=0, on=1, off=nil|
         ^super.newCopyArgs(k, n, o, on, off);
     }
 
@@ -138,7 +190,9 @@ Euc {
             .min(1)[0] = if (k <= 0) { 0 } { 1 }
         );
         items = items.rotate(o.value);
-        items = items.collect({|i| if (i == 0) { off.value } { on.value }});
+        items = items.collect({ |i|
+            if (i == 0) { off.value } { on.value }
+        });
         ^items;
     }
 }
