@@ -1,11 +1,11 @@
 (
 SynthDef.new(\pad, {
-    var env = Env.perc(\atk.kr(0.1), \rel.kr(1)).ar(gate: \t_gate.kr(0));
+    var env = Env.perc(\atk.kr(0.1), \rel.kr(1), curve:-10).ar(Done.freeSelf);
 
     var ampOsc = (SinOsc.kr(0.01) + 1) * \amp.kr(1);
 	var car = Mix.ar(
 		RLPF.ar(
-			Pulse.ar(\freq.kr, SinOsc.ar(5) * 0.15 + 0.5), \lpf.kr(500))
+            Pulse.ar(\freq.kr(220), SinOsc.ar(5) * 0.15 + 0.5), \lpf.kr(500))
 	) * ampOsc * env;
 
     car = HPF.ar(car, \hpf.kr(1000));
@@ -13,7 +13,7 @@ SynthDef.new(\pad, {
 	car = car.tanh;
 
 	Out.ar(\out.kr(0), Clip.ar(car!2));
-}).add;
+}).play;
 
 SynthDef.new(\kick, {
     var sig, modsig, env, freqEnv;
@@ -86,6 +86,10 @@ SynthDef.new(\bass, {
 )
 
 (
+Note.toFreq("c4_maj");
+)
+
+(
 TempoClock.default = TempoClock(150/60);
 
 fork {
@@ -93,13 +97,25 @@ fork {
     var hh;
     var metal;
     var bass;
+    var pad;
 
     kick = Cycle[
         \def -> \kick,
         \spawn -> Euc(5, 16),
         \speed -> 1,
-        \atk -> Alt(0.001, [Alt(0.05, 0.0001), 0.025])
+        \atk -> Alt(0.001, [Alt(0.025, 0.0001), 0.025])
     ].run;
+/*
+    pad = Cycle[
+        \def -> \pad,
+        \spawn -> 1,
+        \freq -> Alt(
+            Note("d3_min"),
+            Note("d3_11s"),
+        ),
+        \rel -> 1,
+        \atk -> 0.15,
+    ].run;*/
 
     hh = Cycle[
         \def -> \hh,
@@ -113,8 +129,30 @@ fork {
 
     bass = Cycle[
         \def -> \bass,
-        \spawn -> [1, 0, Alt(0, 1, 0), Alt(1, 0, [1, 1, 1, 1])],
-        \freq -> [35, 55]
+        \speed -> 2,
+        \spawn -> Alt(
+            [1, 1, 1, 1],
+            [1, \, \, 1],
+            [1, \, [\, 1, \, \], [1, 1]]
+        ),
+        \rel -> 0.0001,
+        \freq -> Note("d1")
+    ].run;
+
+    16.wait;
+
+    pad = Cycle[
+        \def -> \pad,
+        \spawn -> 1,
+        \speed -> 0.25,
+        \freq -> Alt(
+            Note("d4_min"),
+            Note("d4_11s"),
+            Note("d4_7s10"),
+        ),
+        \amp -> -10.dbamp,
+        \rel -> 12,
+        \atk -> 4,
     ].run;
 }
 )

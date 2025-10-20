@@ -1,34 +1,79 @@
-CycleSynth {
+CycleSynthNode {
     var server;
-    var <>synthDefName;
-    var <>synthDef;
-    var <>synthDefArgs;
+    var node;
+    var name;
+    var args;
 
-    *new { |synthDef|
-        ^super.newCopyArgs(Server.default, nil, nil, Dictionary[]);
+    *new { |name, args|
+        ^super.newCopyArgs(Server.default, nil, name, args);
     }
 
     ingestEvent { |event|
-        var oldSynthDefArgs = synthDefArgs;
-        synthDefArgs.putAll(event.synthDefArgs);
+        var oldArgs = args;
+        args.putAll(event.synthDefArgs);
 
         if (notNil(event.synthDef)) {
-            this.synthDefName = event.synthDef;
+            name = event.synthDef;
         };
 
-        if (notNil(event.spawn) && notNil(synthDefName)) {
+        if (notNil(event.spawn) && notNil(name)) {
             server.bind {
-                this.synthDef = Synth.new(synthDefName, synthDefArgs.asPairs, server);
-                NodeWatcher.register(synthDef);
+                node = Synth.new(name, args.asPairs, server);
+                NodeWatcher.register(node);
             }
             ^this;
         };
 
-        if (notNil(synthDef){_.isRunning} && (oldSynthDefArgs != synthDefArgs)) {
+        if (this.isRunning && (oldArgs != args)) {
             server.bind {
-                var msg = ["/n_set", synthDef.nodeID] ++ synthDefArgs.asPairs;
+                var msg = ["/n_set", node.nodeID] ++ args.asPairs;
                 server.listSendMsg(msg);
             };
+        };
+    }
+
+    isRunning {
+        ^notNil(node){_.isRunning}
+    }
+}
+
+CycleSynth {
+    var nodes;
+    var staticName;
+    var staticArgs;
+
+    *new {
+        ^super.newCopyArgs([], nil, Dictionary[]);
+    }
+
+    ingestEvent { |event|
+        var events = event.expand;
+        var tmp;
+        var nodesPerEvent;
+
+        if (notNil(event.synthDef)) {
+            staticName = event.synthDef;
+        };
+
+        event.synthDefArgs.pairsDo { |param, binding|
+            if (binding.isKindOf(Atom)) {
+                // atom bindings are no longer static
+                staticArgs.removeAt(param);
+            } {
+                staticArgs[param] = binding;
+            };
+        };
+        nodes = nodes.removeAllSuchThat{|node, i| not(node.isRunning)};
+
+        while {nodes.size < events.size} {
+            nodes = nodes.add(CycleSynthNode(staticName, staticArgs));
+        };
+
+        // "chunk" the events based on how many events map to each node.
+        nodesPerEvent = nodes.size / events.size;
+        nodes.do { |node, i|
+            var eventIndex = (i / nodesPerEvent).floor;
+            node.ingestEvent(events[eventIndex]);
         };
     }
 }
@@ -39,8 +84,43 @@ TimelineEvent {
     var <>synthDef;
     var <>synthDefArgs;
 
-    *new { |speed, spawn, synthDef, synthArgs|
-        ^super.newCopyArgs(nil, nil, nil, Dictionary[]);
+    *new { |speed, spawn, synthDef, synthArgs=(Dictionary[])|
+        synthArgs = Dictionary().putAll(synthArgs);
+        ^super.newCopyArgs(speed, spawn, synthDef, synthArgs);
+    }
+
+    expand {
+        var atomArgs = [];
+        var nonAtomArgs = Dictionary[];
+
+        synthDefArgs.keysValuesDo { |param, binding|
+            if (binding.isKindOf(Atom)) {
+                var unwrapped = binding.unwrap;
+                var sublist = [];
+                if (unwrapped.isKindOf(SequenceableCollection)) {
+                    unwrapped.flatten.do { |val|
+                        sublist = sublist.add(param -> val);
+                    };
+                    atomArgs.add(sublist);
+                } {
+                    nonAtomArgs[param] = unwrapped;
+                };
+            } {
+                nonAtomArgs[param] = binding;
+            };
+        };
+
+        if (atomArgs.isEmpty) {
+            ^[this];
+        };
+
+        ^atomArgs.allTuples.collect { |tuple|
+            var newEvent = TimelineEvent(speed, spawn, synthDef, nonAtomArgs);
+            tuple.do { |assoc|
+                newEvent.synthDefArgs.put[assoc.key] = assoc.value;
+            };
+            newEvent;
+        };
     }
 
     put { |paramName, paramBinding|
@@ -188,49 +268,5 @@ TimeSeq {
             peeked = nil;
             ^tmp;
         };
-    }
-}
-
-Alt {
-    var items;
-    var ptr;
-
-    *new { |...items|
-        ^super.newCopyArgs(items, 0);
-    }
-
-    value {
-        var tmp = items[ptr];
-        ptr = (ptr + 1) % items.size;
-        ^tmp.value;
-    }
-}
-
-Euc {
-    var k;
-    var n;
-    var o;
-    var on;
-    var off;
-
-    *new { |k, n, o=0, on=1, off=nil|
-        ^super.newCopyArgs(k, n, o, on, off);
-    }
-
-    value {
-        var nVal = n.value;
-        var kVal = k.value;
-        var items = (
-            (kVal / nVal * (0..nVal - 1))
-            .floor
-            .differentiate
-            .asInteger
-            .min(1)[0] = if (kVal <= 0) { 0 } { 1 }
-        );
-        items = items.rotate(o.value);
-        items = items.collect({ |i|
-            if (i == 0) { off.value } { on.value }
-        });
-        ^items;
     }
 }
