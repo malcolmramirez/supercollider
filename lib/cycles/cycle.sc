@@ -24,7 +24,7 @@ CycleSynthNode {
             ^this;
         };
 
-        if (this.isRunning && (oldArgs != args)) {
+        if (this.isRunning() && (oldArgs != args)) {
             server.bind {
                 var msg = ["/n_set", node.nodeID] ++ args.asPairs;
                 server.listSendMsg(msg);
@@ -177,7 +177,6 @@ Cycle {
     run {
         var length = 4;
         var position = 0;
-        var originalTempo = clock.tempo;
 
         clock.sched(0, {
             var findMinTime = {
@@ -197,7 +196,13 @@ Cycle {
                     var event = timeSeq.peek;
                     if (notNil(event)) {
                         if (event.time == time) {
-                            timelineEvent[param] = timeSeq.next.binding;
+                            var binding = timeSeq.next.binding;
+                            if (binding.isKindOf(String)) {
+                                // best effort attempt to coerce string to note.
+                                binding.asString.postln;
+                                binding = Note.toFreq(binding);
+                            };
+                            timelineEvent[param] = binding;
                         };
                     };
                 };
@@ -205,16 +210,23 @@ Cycle {
             };
 
             var waitTime;
-            var currentTime = findMinTime.();
-            var event = collectEventsAt.(currentTime);
-            var nextTime = findMinTime.();
+            var currentTime;
+            var event;
+            var nextTime;
+
+            currentTime = findMinTime.();
+            event = collectEventsAt.(currentTime);
+
+            if (notNil(event.speed)) {
+                params.pairsDo { |param, timeSeq|
+                    timeSeq.stepSize = event.speed.reciprocal;
+                };
+            };
+
+            nextTime = findMinTime.();
 
             position = currentTime;
             waitTime = (nextTime - position);
-
-            if (notNil(event.speed)) {
-                clock.tempo = originalTempo * event.speed;
-            };
             cycleSynth.ingestEvent(event);
 
             (waitTime * length);
@@ -229,27 +241,30 @@ Cycle {
 TimeSeq {
     var eventStream;
     var peeked;
+    var <>stepSize;
 
     *new { |items, stepSize=1|
-        var dfs = { |curr, stepSize, totalSteps|
+        ^super.newCopyArgs(nil, nil, stepSize).init(items);
+    }
+
+    init { |items|
+        var dfs = { |curr, ratio, totalSteps|
             var currValue = curr.value;
-            if (currValue.isKindOf(SequenceableCollection)) {
-                var subStepSize = stepSize / currValue.size;
+            if (currValue.isKindOf(List)) {
                 currValue.do { |binding, i|
-                    dfs.(binding, subStepSize, totalSteps);
+                    dfs.(binding, ratio * currValue.size.reciprocal, totalSteps);
                 };
             } {
                 (time: totalSteps.get, binding: currValue).yield;
-                totalSteps.value = totalSteps.value + stepSize;
+                totalSteps.value = totalSteps.value + (ratio * this.stepSize);
             };
         };
-        var eventStream = r {
+        eventStream = r {
             var totalSteps = `0;
             loop {
-                dfs.(items, stepSize, totalSteps);
+                dfs.(items, 1, totalSteps);
             };
         };
-        ^super.newCopyArgs(eventStream, nil);
     }
 
     peek {

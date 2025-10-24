@@ -56,19 +56,6 @@ Note {
         ];
     }
 
-    *new { |...names|
-        var seqInt = { |name|
-            if (name.isKindOf(String)) {
-                Note.toFreq(name);
-            } {
-                if (name.isKindOf(SequenceableCollection)) {
-                    name.do { |n| seqInt.(n) }
-                };
-            };
-        };
-        ^names.collect { |name| seqInt.(name) };
-    }
-
     *toFreq { |name|
         // note + chordname
         var splitName = name.split($_);
@@ -80,13 +67,13 @@ Note {
         var noteNumber;
 
         if (splitName.size > 2) {
-            Error(
-                "Chord name must be in the form of <note>_<type>, " +
-                "where type is a valid chord").throw;
+            "Chord name must be in the form of <note>_<type>, where type is a valid chord".postln;
+            ^name;
         };
 
         if ((note.size) < 2 || (note.size) > 3) {
-            Error("Note must be in the form of <note><octave>").throw;
+            "Note must be in the form of <note><octave>".postln;
+            ^name;
         };
         if (chordTable == nil) {
             Note.initChordTable;

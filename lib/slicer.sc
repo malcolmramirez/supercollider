@@ -78,3 +78,58 @@ Slicer {
         this.reset;
     }
 }
+
+Slice {
+    var n;
+    var buf;
+    var args;
+    var waitTime;
+    var s;
+
+    *initClass {
+        StartUp.add {
+            SynthDef(\Slice_playbuf, {
+                var sig = PlayBuf.ar(
+                    numChannels: 2,
+                    bufnum: \buf.kr,
+                    rate: \rate.kr,
+                    doneAction: 0,
+                    startPos: \numFrames.kr * (\slice.kr / \n.kr)
+                );
+                sig = sig * \amp.kr(1);
+                sig = sig * Env.perc(0, \dur.kr, curve: -4).kr(Done.freeSelf);
+                Out.ar(\out.kr(0), sig);
+            }).add;
+        }
+    }
+
+    *new { |n, buf, speed=1, args=([]), clock=(TempoClock.default), s=(Server.default)|
+        var sampleDur = buf.numFrames / buf.sampleRate;
+        var rate = sampleDur / (clock.beatsPerBar / clock.tempo) * speed;
+        var waitTime = (clock.beatsPerBar * (1 / n)) * speed.reciprocal;
+        args = args ++ [
+            \buf, buf,
+            \numFrames, buf.numFrames,
+            \n, n,
+            \rate, rate,
+            \dur, waitTime * clock.beatDur,
+        ];
+
+        ^super.newCopyArgs(n, buf, args, waitTime, s);
+    }
+
+    loop { |times=inf|
+        times.do {
+            n.do { |i|
+                this.play(i)
+            }
+        }
+    }
+
+    play { |i|
+        s.bind {
+            Synth(\Slice_playbuf, args ++ [\slice, i]);
+        };
+        waitTime.wait;
+    }
+}

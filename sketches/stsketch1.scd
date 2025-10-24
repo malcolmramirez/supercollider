@@ -86,7 +86,7 @@ SynthDef.new(\bass, {
 )
 
 (
-Note.toFreq("c4_maj");
+"".class
 )
 
 (
@@ -105,17 +105,14 @@ fork {
         \speed -> 1,
         \atk -> Alt(0.001, [Alt(0.025, 0.0001), 0.025])
     ].run;
-/*
+
     pad = Cycle[
         \def -> \pad,
         \spawn -> 1,
-        \freq -> Alt(
-            Note("d3_min"),
-            Note("d3_11s"),
-        ),
+        \freq -> Alt("d3_min", "d3_11s"),
         \rel -> 1,
         \atk -> 0.15,
-    ].run;*/
+    ].run;
 
     hh = Cycle[
         \def -> \hh,
@@ -136,7 +133,7 @@ fork {
             [1, \, [\, 1, \, \], [1, 1]]
         ),
         \rel -> 0.0001,
-        \freq -> Note("d1")
+        \freq -> "d1"
     ].run;
 
     16.wait;
@@ -145,11 +142,7 @@ fork {
         \def -> \pad,
         \spawn -> 1,
         \speed -> 0.25,
-        \freq -> Alt(
-            Note("d4_min"),
-            Note("d4_11s"),
-            Note("d4_7s10"),
-        ),
+        \freq -> Alt("d4_min", "d4_11s", "d4_7s10"),
         \amp -> -10.dbamp,
         \rel -> 12,
         \atk -> 4,
