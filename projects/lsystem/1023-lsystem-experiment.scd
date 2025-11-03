@@ -1,31 +1,76 @@
+/**
+
+variables : X F
+constants : + − [ ][0, 1]
+start  : -X
+rules  : (X → F+[[X]-X]-F[-FX]+X), (F → FF)
+angle  : 25°
+
+
+- go up 25d until you hit one, then go down until -1.
+
+- go up 25d from previous pos until you hit (+/-(1/d)) from previous pos.
+
+Here, F means "draw forward", − means "turn right 25°", and + means "turn left 25°". X does not correspond to any drawing action and is used to control the evolution of the curve.
+*/
+
+/*
+
+fn fern(segment, angle, pos):
+
+for sym in segment:
+
+if sym == "+"
+angle = angle+25deg
+
+if sym == "-"
+angle = angle-25deg
+
+if sym == "F"
+draw line at angle for unit distance from pos
+pos = new pos
+
+if sym == "["
+fern(new segment, unit/2, angle, pos.copy)
+
+if sym == "]"
+return
+
+if sym == "X"
+nothing?
+
+*/
 (
-var readSoundFiles = { |folder|
-    PathName(folder).entries.collect({ |file|
-        if (file.extension == "wav") {
-            Buffer.read(s, file.fullPath);  // fullPath handles spaces automatically
+var size = 1024;
+var fern = Array.fill(size, 0);
+
+/**
+variables : X F
+constants : + − [ ]
+start  : -X
+rules  : (X → F+[[X]-X]-F[-FX]+X), (F → FF)
+ */
+var generateFern = { |n=10|
+    var str = ["-", "X"];
+    n.do {
+        var next = [];
+        str.do { |sym|
+            if (sym == "X") {
+                "F+[[X]-X]-F[-FX]+X".do { |c| next = next.add(c.asString) };
+            };
+            if (sym == "F") {
+                "FF".do { |c| next = next.add(c.asString) };
+            };
+            if ((sym == "-") || (sym == "X")) {
+                next = next.add(sym);
+            };
         };
-    });
+        str = next;
+    };
+    str;
 };
 
-~breaks = readSoundFiles.("~/dev/samples/samples-extra/break");
-)
-
-(
-SynthDef(\fm, {
-    var sig, env;
-
-    sig = SinOsc.ar(
-        \freq.kr(220) * SinOsc.ar(\modfreq.kr(220) *
-            SinOsc.ar(\modfreq.kr(220) *
-                Line.ar(Rand(0.1, 0.5), 1, \rel.kr(1)))));
-    env = Env.perc(\atk.kr(0.1), \rel.kr(1)).ar(Done.freeSelf);
-
-    sig = sig * env;
-
-    sig = LPF.ar(RLPF.ar(sig, \rlpf.kr(110), Line.ar(1, 0.1, 0.5)), \lpf.kr(110));
-
-    Out.ar(\out.kr(0), sig ! 2);
-}).add;
+generateFern.(2)
 )
 
 /*
@@ -53,15 +98,16 @@ F+G+F-G+F+G-F-G ->
 var width = 1510;
 var height = 377.5;
 var win = Window("l system", Rect(100, 100, width, height))
-.background_(Color.white)
-.front;
+	.background_(Color.white)
+  .front;
 
 var cellWidth = width / 16;
 var cellHeight = height / 4;
 var trailLifetime = 2.0;  // seconds
 var userView = UserView(win, win.view.bounds)
-.background_(Color.white)
-.animate_(true);
+  .background_(Color.white)
+  .animate_(true);
+
 ~squares = Dictionary[];
 ~points = Dictionary[];
 
@@ -92,16 +138,68 @@ userView.drawFunc = {
 };
 )
 
+
 (
-TempoClock.default = TempoClock(150/60);
+Ndef(\mic, { SoundIn.ar([0, 1]) }).gui;
+)
+
+(
+Env.perc(0, 1, curve: -4).plot
+)
+
+(
+var readSoundFiles = { |folder|
+    PathName(folder).entries.collect({ |file|
+        if (file.extension == "wav") {
+            Buffer.read(s, file.fullPath);  // fullPath handles spaces automatically
+        };
+    });
+};
+
+~breaks = readSoundFiles.("~/dev/samples/samples-extra/break");
+
+SynthDef.new(\kick, {
+    var sig, modsig, env, freqEnv;
+
+    env = Env.perc(\atk.kr(0.001), \rel.kr(0.25), curve: -2).ar(Done.freeSelf);
+    modsig = Saw.ar(\mod.kr(50)) / 4 + 1;
+
+    sig = SinOsc.ar(\freq.kr(100) * (env * \punch.kr(1.2)) * modsig);
+
+    sig = sig * env * \amp.kr(4.dbamp);
+    sig = sig!2;
+
+    Out.ar(\out.kr(0), sig);
+}).add;
+
+SynthDef.new(\lpf, {
+    var sig;
+
+    sig = In.ar(\in.kr, 2);
+    sig = LPF.ar(sig, \lpf.kr(5000));
+    sig = sig * \amp.kr(1);
+
+    Out.ar(\out.kr(0), sig);
+}).add;
+)
+
+(
+~lpfBus = Bus.audio(s, 2);
+~lpfFx = Synth.tail(s, \lpf, [\in, ~lpfBus]);
+)
+
+(
+~lpfFx.set(\lpf, 250);
+~lpfFx.set(\amp, 5.dbamp);
+)
+
+(
+TempoClock.default = TempoClock(120/60);
 
 fork {
-    var breaks = [
-        Slice(16, ~breaks[16]),
-        Slice(16, ~breaks[9], 1),
-        Slice(16, ~breaks[4], 1),
-        Slice(16, ~breaks[17]),
-    ];
+    var breaks = [16, 9, 4, 17].collect { |num, i|
+        Slice(~breaks[num], 1)
+    };
 
     var runDragonCurve = { |n=10|
         var str = ["F"];
@@ -153,7 +251,7 @@ fork {
                         color: [Color.red, Color.blue, Color.green].choose
                     ));
 
-                    breaks[pos[0]].play(pos[1]);
+                    breaks[pos[0]].play(pos[1], out: ~lpfBus, curve: -8);
                 };
             }
         }
@@ -172,17 +270,6 @@ fork {
             ));
             1.wait;
         }
-    };
-
-    fork {
-        inf.do { |i|
-            (440 * [1, 3/2, ]).do { |freq|
-                s.bind {
-                    Synth(\fm, [\freq, freq]);
-                };
-            };
-            4.wait;
-        }
-    };
+    }
 };
 )

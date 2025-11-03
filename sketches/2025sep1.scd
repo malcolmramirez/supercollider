@@ -1,5 +1,5 @@
-(
 
+(
 SynthDef.new(\drone, {
     var sig, mod, modmod, trig;
 

@@ -80,55 +80,81 @@ Slicer {
 }
 
 Slice {
-    var n;
     var buf;
-    var args;
-    var waitTime;
-    var s;
 
     *initClass {
         StartUp.add {
             SynthDef(\Slice_playbuf, {
+                var bufnum = \bufnum.kr;
+                var numSlices = \numSlices.kr(16);
+
+                var beatsPerSecond = \beatsPerSecond.kr(120/60/60); // bps
+                var secondsPerBar = \beatsPerBar.kr(4) / beatsPerSecond;
+
+                var secondsPerFrame = BufFrames.kr(bufnum) / BufSampleRate.kr(bufnum);
+                var framesPerSlice = BufFrames.kr(bufnum) / numSlices;
+
                 var sig = PlayBuf.ar(
                     numChannels: 2,
-                    bufnum: \buf.kr,
-                    rate: \rate.kr,
+                    bufnum: bufnum,
+                    rate: secondsPerFrame / secondsPerBar,
                     doneAction: 0,
-                    startPos: \numFrames.kr * (\slice.kr / \n.kr)
+                    startPos: framesPerSlice * \slice.kr(0)
                 );
+
                 sig = sig * \amp.kr(1);
-                sig = sig * Env.perc(0, \dur.kr, curve: -4).kr(Done.freeSelf);
+                sig = sig * Env.perc(
+                    0,
+                    secondsPerBar / numSlices,
+                    curve: \curve.kr(100)
+                ).ar(Done.freeSelf);
+
                 Out.ar(\out.kr(0), sig);
             }).add;
         }
     }
 
-    *new { |n, buf, speed=1, args=([]), clock=(TempoClock.default), s=(Server.default)|
-        var sampleDur = buf.numFrames / buf.sampleRate;
-        var rate = sampleDur / (clock.beatsPerBar / clock.tempo) * speed;
-        var waitTime = (clock.beatsPerBar * (1 / n)) * speed.reciprocal;
-        args = args ++ [
-            \buf, buf,
-            \numFrames, buf.numFrames,
-            \n, n,
-            \rate, rate,
-            \dur, waitTime * clock.beatDur,
-        ];
-
-        ^super.newCopyArgs(n, buf, args, waitTime, s);
+    *new { |buf|
+        ^super.newCopyArgs(buf);
     }
 
-    loop { |times=inf|
+    playLoop { |times=inf,
+            pat=((0..15)),
+            n=16,
+            speed=1,
+            amp=1,
+            out=0,
+            curve=100,
+            clock=(TempoClock.default),
+            tdef=nil|
         times.do {
-            n.do { |i|
-                this.play(i)
+            pat.do { |i|
+                this.play(i, n, speed, amp, out, curve, clock)
             }
         }
     }
 
-    play { |i|
-        s.bind {
-            Synth(\Slice_playbuf, args ++ [\slice, i]);
+    play { |i,
+            n=16,
+            speed=1,
+            amp=1,
+            out=0,
+            curve=100,
+            clock=(TempoClock.default)|
+        // assuming 4/4 for now
+        var waitTime = clock.beatsPerBar / (n * speed);
+        var server = Server.default;
+        server.bind {
+            Synth(\Slice_playbuf, [
+                \bufnum, buf,
+                \numSlices, n,
+                \amp, amp,
+                \out, out,
+                \beatsPerSecond, clock.tempo * speed,
+                \beatsPerBar, clock.beatsPerBar,
+                \slice, i,
+                \curve, curve
+            ]);
         };
         waitTime.wait;
     }
