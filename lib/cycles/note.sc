@@ -100,9 +100,9 @@ Note {
         ^if (splitName.size == 1) {
             noteNumber.midicps;
         } {
-            Atom(chordTable[chord].collect{|num|
+            chordTable[chord].collect{|num|
                 (num + noteNumber).midicps;
-            });
+            };
         };
     }
 }
