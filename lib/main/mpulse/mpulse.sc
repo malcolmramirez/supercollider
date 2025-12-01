@@ -1,8 +1,4 @@
-// grammar
-// - x(k, n, o) 
-// - x
-// - [x y ... z]
-// - <x y ... z>
+// --- parser ---
 
 PParse {
     
@@ -16,16 +12,15 @@ PParse {
         if ((openIdx.notNil)
                 .and(closeIdx.notNil)
                 .and(closeIdx == (token.size - 1))) {
-            parts = token[openIdx+1..closeIdx-1]
-                .split($ )
-                .collect(_.stripWhiteSpace);
+            parts = PParse
+                .visitSeqLike(token[openIdx..]);
             
             if (parts.size >= 2) {
                 ^(type: \euc, 
-                    val: PParse.from(token[..openIdx-1]),
-                    k: parts[0].asInteger, 
-                    n: parts[1].asInteger, 
-                    o: if (parts.size > 2) { parts[2].asInteger } { 0 }) 
+                    val: PParse.visit(token[..openIdx-1]),
+                    k: parts[0], 
+                    n: parts[1], 
+                    o: if (parts.size > 2) { parts[2] } { PParse.visitVal("0") }) 
             };
         };
         
@@ -49,9 +44,13 @@ PParse {
         var nonSpecial = token.select { |ch| 
             PParse.isOpen(ch).or(PParse.isClosed(ch)) 
         }.isEmpty;
-        if (not(token.isEmpty).and(nonSpecial)) {
+        if (not(token.isEmpty)
+                .and(nonSpecial)
+                .and((token.asFloat != 0)
+                        .or(token == "0") // hack :P
+                        .or(token == "~"))) {
             ^(type: \val, 
-                val: token.asInteger)
+                val: token.asFloat)
         };
         ^nil
     }
@@ -91,7 +90,7 @@ PParse {
         
         ^items 
             .select { |x| x.size > 0 } 
-            .collect { |item| PParse.from(item) };
+            .collect { |item| PParse.visit(item) };
     }
 
     *visitSeq { |token|
@@ -114,7 +113,7 @@ PParse {
         ^nil
     }
 
-    *from { |str|
+    *visit { |str|
         var result;
         
         str = str.stripWhiteSpace;
@@ -142,12 +141,79 @@ PParse {
         Error("Invalid pattern:" + str).throw;    
     }
 
-    *new { |str|
+    *parse { |str|
         if ((str.first != $[)
-                .and(str.last != $])) {
+                .or(str.last != $])) {
             str = "[" ++ str ++ "]";
         };
-        ^PParse.from(str);
+        ^PParse.visit(str);
     }
 }
 
+// --- demand rate generator ---
+
+Dpat {
+
+    *asDemand { |node, dur|
+        var val, type;
+
+        type = node.type;
+        val = node.val;
+
+        ^case
+        { type == \val } {
+            [val, dur]
+        }
+        { type == \euc } {
+            Error("Euclidean DPat not implemented!").throw;
+        }
+        { type == \seq } {
+            var vals = [];
+            var durs = [];
+            val.collect { |item| 
+                var pair = Dpat.asDemand(item, dur / val.size); 
+                vals = vals.add(pair[0]);
+                durs = durs.add(pair[1]);
+            };
+            [Dseq(vals, 1), Dseq(durs, 1)];
+        }
+        { type == \alt } {
+            Error("Alt DPat not implemented!").throw;
+        };
+    }
+
+    *kr { |str, cycleTime|
+        var pat, durs, vals;
+
+        pat = Dpat.asDemand(
+            PParse.parse(str),
+            cycleTime);
+
+        vals = Dseq([pat[0]], inf);
+        durs = Dseq([pat[1]], inf);
+
+        ^TDuty.kr(durs, Impulse.kr(0), vals);
+   }
+}
+
+// --- mpulse ---
+
+Mpulse {
+
+    *ndef { |key, str, speed=1|
+        var bps = 4 / speed;
+        var currentCycle = TempoClock.default.beats / bps;
+        var nextCycle = currentCycle.ceil;
+        var waitTime = (nextCycle - currentCycle) * bps;
+
+        TempoClock.default.sched(waitTime, {
+            Ndef(key, {
+                var cycleTime = TempoClock.default.beatDur * bps;
+                Dpat.kr(str, cycleTime);
+            });
+            nil;
+        });
+        
+        ^Ndef(key);
+    }
+}
