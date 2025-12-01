@@ -19,7 +19,7 @@ Ndef(\pad, {
 
     sig = RLPF.ar(
         sig, 
-        SinOsc.ar(bar2sec/4).linlin(-1, 1, 110, 440), 
+        SinOsc.ar(~bar2sec/4).linlin(-1, 1, 110, 440), 
         Env.perc(0, 0.5, curve: -2)
            .ar(gate: \t_trig.tr(0))
            .linlin(0, 1, 0.33, \q.kr(1).reciprocal));
@@ -58,8 +58,8 @@ Ndef(\kick, {
     env = Env.perc(\atk.kr(0.025), \rel.kr(0.25)).ar(gate: trig);
     sig = sig * env;
     sig = LPF.ar(sig, 150);
-    
-    sig.tanh * \vol.kr(1);
+    sig = sig.tanh * \vol.kr(1);
+    sig;
 });
 
 Ndef(\noise, {
@@ -109,12 +109,11 @@ Tdef(\noise, {
 (
 Tdef(\kick, {
     loop {
-        var euc = Euc(5, 16);
         Ndef(\kick).set(
-            \vol, euc,
+            \vol, 1,
             \atk, 0.001,
             \t_trig, 1);
-        (1/16).wait;
+        (1/2).wait;
     }
 }).play;
 
@@ -140,5 +139,5 @@ Tdef(\prog, {
             4.wait;
         }
     }
-}).play;
+}).play
 )
