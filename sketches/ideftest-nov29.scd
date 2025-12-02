@@ -15,7 +15,7 @@ Ndef(\kd, {
 })
 .map(
     \trig, 
-    Mpulse.ndef(\p1, "1 ~", 2))
+    Mpulse.ndef(\p1, "1 ~ ~ ~", speed: 4))
 .play;
 
 Ndef(\hh, {
@@ -28,7 +28,7 @@ Ndef(\hh, {
 })
 .map(
     \trig, 
-    Mpulse.ndef(\p2, "~ ~ 1 ~", 4))
+    Mpulse.ndef(\p2, "~ ~ <1 ~> ~", speed: 4))
 .play;
 
 Ndef(\snare, {
@@ -43,7 +43,7 @@ Ndef(\snare, {
         Hasher.ar(
             [Saw.ar(220), Pulse.ar(334), SinOsc.ar(110)]) 
                 * 0.5 
-                * Env.perc(0.05, 0.02).ar(gate: imp));
+                * Env.perc(0.05, 0.075).ar(gate: imp));
     sig = sig * env * 12.5.dbamp;
     sig = RLPF.ar(sig, 220, pitchEnv.linlin(1, 2, 0.05, 1));
     sig = Resonz.ar(sig, 440, 8 * SinOsc.ar(0.5).linlin(-1, 1, 1, 2));

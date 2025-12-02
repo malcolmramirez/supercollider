@@ -4,15 +4,13 @@ PParse {
     
     *visitEuc { |token|
         // x(k, n, opt(o))
-        var openIdx, closeIdx, parts;
-        
-        openIdx = token.indexOf($();
-        closeIdx = token.indexOf($));
+        var openIdx = token.indexOf($(),
+            closeIdx = token.indexOf($));
         
         if ((openIdx.notNil)
                 .and(closeIdx.notNil)
                 .and(closeIdx == (token.size - 1))) {
-            parts = PParse
+            var parts = PParse
                 .visitSeqLike(token[openIdx..]);
             
             if (parts.size >= 2) {
@@ -56,13 +54,11 @@ PParse {
     }
 
     *visitSeqLike { |token|
-        var items, depth, start;
+        var items = List.new,
+            depth = 0,
+            start = 0;
 
         token = token[1..token.size-2];
-        items = List.new;
-        depth = 0;
-        start = 0;
-        
         token.size.do { |i|
             var curr = token[i];
             case 
@@ -114,11 +110,7 @@ PParse {
     }
 
     *visit { |str|
-        var result;
-        
-        str = str.stripWhiteSpace;
-        
-        result = PParse.visitEuc(str);
+        var result = PParse.visitEuc(str.stripWhiteSpace);
         if (result.notNil) { 
             ^result 
         };
@@ -154,11 +146,9 @@ PParse {
 
 Dpat {
 
-    *asDemand { |node, dur|
-        var val, type;
-
-        type = node.type;
-        val = node.val;
+    *asDemand { |node, dur, cycleCount|
+        var val = node.val, 
+            type = node.type;
 
         ^case
         { type == \val } {
@@ -168,29 +158,41 @@ Dpat {
             Error("Euclidean DPat not implemented!").throw;
         }
         { type == \seq } {
-            var vals = [];
-            var durs = [];
+            var vals = [],
+                durs = [];
+            
             val.collect { |item| 
-                var pair = Dpat.asDemand(item, dur / val.size); 
+                var pair = Dpat.asDemand(item, dur / val.size, cycleCount); 
                 vals = vals.add(pair[0]);
                 durs = durs.add(pair[1]);
             };
+
             [Dseq(vals, 1), Dseq(durs, 1)];
         }
         { type == \alt } {
-            Error("Alt DPat not implemented!").throw;
+            var vals = [],
+                durs = [],
+                index = cycleCount % val.size;
+            
+            val.collect { |item|
+                var pair = Dpat.asDemand(item, dur, cycleCount);
+                vals = vals.add(pair[0]);
+                durs = durs.add(pair[1]);
+            };
+            
+            [Dswitch(vals, index),
+             Dswitch(durs, index)]
         };
     }
 
     *kr { |str, cycleTime|
-        var pat, durs, vals;
-
-        pat = Dpat.asDemand(
-            PParse.parse(str),
-            cycleTime);
-
-        vals = Dseq([pat[0]], inf);
-        durs = Dseq([pat[1]], inf);
+        var cycleCount = Stepper.kr(Impulse.kr(1/cycleTime), max: inf),
+            pat = Dpat.asDemand(
+                PParse.parse(str),
+                cycleTime,
+                cycleCount),
+            vals = Dseq([pat[0]], inf),
+            durs = Dseq([pat[1]], inf);
 
         ^TDuty.kr(durs, Impulse.kr(0), vals);
    }
@@ -200,20 +202,18 @@ Dpat {
 
 Mpulse {
 
-    *ndef { |key, str, speed=1|
-        var bps = 4 / speed;
-        var currentCycle = TempoClock.default.beats / bps;
-        var nextCycle = currentCycle.ceil;
-        var waitTime = (nextCycle - currentCycle) * bps;
-
-        TempoClock.default.sched(waitTime, {
+    *ndef { |key, str, speed=1, quant=4|
+        var clock = TempoClock.default;
+        var currentBeat = clock.beats;
+        var scheduleTime = (quant - (currentBeat % quant));
+        
+        TempoClock.sched(scheduleTime, {
             Ndef(key, {
-                var cycleTime = TempoClock.default.beatDur * bps;
+                var cycleTime = TempoClock.default.beatDur * 4 / speed;
                 Dpat.kr(str, cycleTime);
             });
             nil;
         });
-        
-        ^Ndef(key);
+        ^Ndef(key); 
     }
 }
