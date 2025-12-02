@@ -4,14 +4,17 @@ PParse {
     
     *visitEuc { |token|
         // x(k, n, opt(o))
-        var openIdx = token.indexOf($(),
-            closeIdx = token.indexOf($));
+        var openIdx, closeIdx, parts;
+        
+        openIdx = token.indexOf($();
+        closeIdx = token.indexOf($));
         
         if ((openIdx.notNil)
                 .and(closeIdx.notNil)
                 .and(closeIdx == (token.size - 1))) {
-            var parts = PParse.visitSeqLike(token[openIdx..]);
-
+            parts = PParse
+                .visitSeqLike(token[openIdx..]);
+            
             if (parts.size >= 2) {
                 ^(type: \euc, 
                     val: PParse.visit(token[..openIdx-1]),
@@ -25,11 +28,15 @@ PParse {
     }
 
     *isOpen { |ch|
-        ^(ch == $().or(ch == $[).or(ch == $<)
+        ^(ch == $()
+            .or(ch == $[)
+            .or(ch == $<)
     }
 
     *isClosed { |ch|
-        ^(ch == $)).or(ch == $]).or(ch == $>)
+        ^(ch == $))
+            .or(ch == $])
+            .or(ch == $>)
     }
 
     *visitVal { |token|
@@ -42,17 +49,20 @@ PParse {
                 .and((token.asFloat != 0)
                         .or(token == "0") // hack :P
                         .or(token == "~"))) {
-            ^(type: \val, val: token.asFloat)
+            ^(type: \val, 
+                val: token.asFloat)
         };
         ^nil
     }
 
     *visitSeqLike { |token|
-        var items = List.new, 
-            depth = 0, 
-            start = 0;
+        var items, depth, start;
 
         token = token[1..token.size-2];
+        items = List.new;
+        depth = 0;
+        start = 0;
+        
         token.size.do { |i|
             var curr = token[i];
             case 
@@ -87,7 +97,8 @@ PParse {
         // [x y ... z]
         if ((token.first == $[)
                 .and(token.last == $])) {
-            ^(type: \seq, val: PParse.visitSeqLike(token))
+            ^(type: \seq, 
+                val: PParse.visitSeqLike(token))
         };
         ^nil
     }
@@ -96,13 +107,18 @@ PParse {
         // <x y ... z>
         if ((token.first == $<)
                 .and(token.last == $>)) {
-            ^(type: \alt, val: PParse.visitSeqLike(token))
+            ^(type: \alt, 
+                val: PParse.visitSeqLike(token))
         };
         ^nil
     }
 
     *visit { |str|
-        var result = PParse.visitEuc(str.stripWhiteSpace);
+        var result;
+        
+        str = str.stripWhiteSpace;
+        
+        result = PParse.visitEuc(str);
         if (result.notNil) { 
             ^result 
         };
@@ -139,8 +155,10 @@ PParse {
 Dpat {
 
     *asDemand { |node, dur|
-        var val = node.val, 
-            type = node.type;
+        var val, type;
+
+        type = node.type;
+        val = node.val;
 
         ^case
         { type == \val } {
@@ -165,9 +183,14 @@ Dpat {
     }
 
     *kr { |str, cycleTime|
-        var pat = Dpat.asDemand(PParse.parse(str), cycleTime),
-            vals = Dseq([pat[0]], inf),
-            durs = Dseq([pat[1]], inf);
+        var pat, durs, vals;
+
+        pat = Dpat.asDemand(
+            PParse.parse(str),
+            cycleTime);
+
+        vals = Dseq([pat[0]], inf);
+        durs = Dseq([pat[1]], inf);
 
         ^TDuty.kr(durs, Impulse.kr(0), vals);
    }
@@ -178,10 +201,10 @@ Dpat {
 Mpulse {
 
     *ndef { |key, str, speed=1|
-        var bps = 4 / speed,
-            currentCycle = TempoClock.default.beats / bps,
-            nextCycle = currentCycle.ceil,
-            waitTime = (nextCycle - currentCycle) * bps;
+        var bps = 4 / speed;
+        var currentCycle = TempoClock.default.beats / bps;
+        var nextCycle = currentCycle.ceil;
+        var waitTime = (nextCycle - currentCycle) * bps;
 
         TempoClock.default.sched(waitTime, {
             Ndef(key, {
