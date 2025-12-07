@@ -15,20 +15,20 @@ Ndef(\kd, {
 })
 .map(
     \trig, 
-    Mpulse.ndef(\p1, "1 ~ ~ ~", speed: 4))
+    Mpulse.ndef(\p1, "<1 ~> [1 <~ 1 ~>] ~ ~", speed: 2))
 .play;
 
 Ndef(\hh, {
     var sig;
 
-    sig = WhiteNoise.ar(0.025) ! 3;
-    sig = sig * Env.perc(0.01, 0.025).ar(gate: \trig.kr);
+    sig = WhiteNoise.ar(0.01) ! 3;
+    sig = sig * Env.perc(0.01, 0.02).ar(gate: \trig.kr);
 
     Splay.ar(sig);
 })
 .map(
     \trig, 
-    Mpulse.ndef(\p2, "~ ~ <1 ~> ~", speed: 4))
+    Mpulse.ndef(\p2, "~ ~ <~ ~ 1 ~> ~", speed: 4))
 .play;
 
 Ndef(\snare, {
@@ -58,3 +58,11 @@ Ndef(\snare, {
 )
 
 UnitTest.runAll;
+
+Ndef(\test, {
+    var trig = Dpat.kr("<1 [1 1 1 1] 1>", 0.5).scope;
+    trig.poll(label: "trigger");
+    trig
+}).play;
+
+DC

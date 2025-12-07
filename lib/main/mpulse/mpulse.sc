@@ -166,27 +166,27 @@ Dpat {
                 vals = vals.add(pair[0]);
                 durs = durs.add(pair[1]);
             };
-
+            vals.postln;
+            durs.postln;
             [Dseq(vals, 1), Dseq(durs, 1)];
         }
         { type == \alt } {
             var vals = [],
-                durs = [],
-                index = cycleCount % val.size;
+                durs = [];
             
             val.collect { |item|
                 var pair = Dpat.asDemand(item, dur, cycleCount);
                 vals = vals.add(pair[0]);
                 durs = durs.add(pair[1]);
             };
-            
-            [Dswitch(vals, index),
-             Dswitch(durs, index)]
+
+            [Dseq([Dswitch1(vals, cycleCount % val.size)], 1),
+             Dseq([Dswitch1(durs, cycleCount % val.size)], 1)]
         };
     }
 
     *kr { |str, cycleTime|
-        var cycleCount = Stepper.kr(Impulse.kr(1/cycleTime), max: inf),
+        var cycleCount = Demand.kr(Impulse.kr(1/cycleTime), 0, Dseries(0, 1, inf)),
             pat = Dpat.asDemand(
                 PParse.parse(str),
                 cycleTime,
