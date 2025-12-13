@@ -1,1 +1,2 @@
-UnitTest.runAll
+UnitTest.gui
+
