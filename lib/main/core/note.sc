@@ -1,7 +1,7 @@
 Note {
     classvar chordTable;
 
-    *initChordTable {
+    *initClass {
         chordTable = Dictionary[
             "maj" -> [0, 4, 7],
             "aug" -> [0, 4, 8],
@@ -67,16 +67,11 @@ Note {
         var noteNumber;
 
         if (splitName.size > 2) {
-            "Chord name must be in the form of <note>_<type>, where type is a valid chord".postln;
             ^name;
         };
 
         if ((note.size) < 2 || (note.size) > 3) {
-            "Note must be in the form of <note><octave>".postln;
             ^name;
-        };
-        if (chordTable == nil) {
-            Note.initChordTable;
         };
         octave = note.last.asString.asInteger;
 

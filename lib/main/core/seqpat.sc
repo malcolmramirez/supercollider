@@ -19,7 +19,8 @@ SPTokenStream {
             $) -> \rparen,
             $< -> \lt,
             $> -> \gt,
-            $` -> \tick
+            $` -> \tick,
+            $~ -> \rest
         ];
     }
 
@@ -41,14 +42,13 @@ SPTokenStream {
         ^prev;
     }
 
-    valueToken {
+    accumulateWhile { |pred|
         var acc = [];
         while {
             var tok = this.curr;
             not(this.isTerminal) 
-                and: {not(tok.isSpace)} 
+                and: {pred.(tok)} 
                 and: {not(tokenTable.includesKey(tok))}
-            
         } {
             acc = acc.add(this.advance);
         };
@@ -56,7 +56,10 @@ SPTokenStream {
     }
 
     next {
-        var tok;
+        var tok,
+            val,
+            isNum = { |t| t.isDecDigit or: {t == $.}},
+            isStr = { |t| not(t.isSpace) };
         
         if (notNil(head)) {
             tok = head;
@@ -74,11 +77,18 @@ SPTokenStream {
         };
         tok = this.curr;
 
-        ^if (tokenTable.includesKey(tok)) {
-            SPToken(tokenTable[tok], String.newFrom(this.advance));
-        } {
-            SPToken(\val, this.valueToken);
+        if (tokenTable.includesKey(tok)) {
+            val = String.newFrom(this.advance);
+            ^SPToken(tokenTable[tok], val);
         };
+
+        if (isNum.(tok)) {
+            val = this.accumulateWhile(isNum);
+            ^SPToken(\num, val);
+        };
+
+        val = this.accumulateWhile(isStr);
+        ^SPToken(\sym, val);
     }
 
     peek {
@@ -104,15 +114,15 @@ SPSeq {
         ^super.newCopyArgs(seq);
     }
 
-    visit { |dur|
+    demand { |dur|
         var vals = [],
             durs = [];
         seq.do { |elem|
-            var pair = elem.visit(dur / seq.size);
+            var pair = elem.demand(dur / seq.size);
             vals = vals.add(pair[0]);
             durs = durs.add(pair[1]);
         };
-        ^[Dseq(vals, 1), Dseq(durs, 1)];
+        ^[Dseq(vals, 1), Dseq(durs, 1)]
     }
 }
 
@@ -123,11 +133,11 @@ SPEuc {
         ^super.newCopyArgs(val, n, k, o);
     }
 
-    visit { |dur|
-        var nVal = n.visit(dur)[0].asInteger,
-            kVal = k.visit(dur)[0].asInteger,
-            oVal = o.visit(dur)[0].asInteger,
-            vVal = val.visit(dur / nVal),
+    demand { |dur|
+        var nVal = n.demand(dur)[0].asInteger,
+            kVal = k.demand(dur)[0].asInteger,
+            oVal = o.demand(dur)[0].asInteger,
+            vVal = val.demand(dur / nVal),
             genPat = { |val|
                 ((kVal / nVal * (0..nVal - 1))
                     .floor
@@ -150,10 +160,10 @@ SPAlt {
         ^super.newCopyArgs(alts, 0);
     }
 
-    visit { |dur|
+    demand { |dur|
         var tmp = alts[ptr];
         ptr = (ptr + 1) % alts.size;
-        ^tmp.visit(dur);
+        ^tmp.demand(dur);
     }
 }
 
@@ -164,19 +174,34 @@ SPCode {
         ^super.newCopyArgs(expr.compile);
     }
     
-    visit { |dur|
+    demand { |dur|
         ^[f.value, dur];
     }
 }
 
-SPVal {
+SPSym {
     var val;
 
     *new { |val|
+        ^super.newCopyArgs(Note.toFreq(val));
+    }
+
+    demand { |dur| 
+        ^[val, dur];
+    }
+}
+
+SPNum {
+    var val;
+
+    *new { |val|
+        if (val == "~") {
+            val = 0;
+        };
         ^super.newCopyArgs(val.asFloat);
     }
 
-    visit { |dur| 
+    demand { |dur| 
         ^[val, dur];
     }
 }
@@ -202,13 +227,13 @@ SPParser {
         var acc = [];
         stream.consume(start);
         while { stream.peek().type != end } {
-            acc = acc ++ this.parse;
+            acc = acc ++ this.parseInternal;
         };
         stream.consume(end);
         ^acc;
     }
 
-    parse { 
+    parseInternal { 
         var head = stream.peek(),
             sp;
         
@@ -230,8 +255,14 @@ SPParser {
             sp = SPCode(code);
         };
 
-        if (head.type == \val) {
-            sp = SPVal(stream.consume(\val));
+        if (head.type == \num or: {head.type == \rest}) {
+            var num = stream.consume(head.type);
+            sp = SPNum(num);
+        };
+
+        if (head.type == \sym) {
+            var str = stream.consume(\sym);
+            sp = SPSym(str);
         };
 
         if (stream.isTerminal()) {
@@ -246,41 +277,60 @@ SPParser {
             if (args.size != 2 and: {args.size != 3}) {
                 Error("Wrong number of args for euc: " ++ args).throw;
             };
-            sp = SPEuc(sp, args[0], args[1], args[2] ? SPVal("0"));
+            sp = SPEuc(sp, args[0], args[1], args[2] ? SPNum("0"));
         };
         ^sp;
+    }
+
+    parse {
+        // TODO: Something about this isn't working quite right...
+        //       Patterns defined without an explicit wrapper seq don't sync up correctly to stuff.
+        var seq = [];
+        while { not(stream.isTerminal()) } {
+            seq = seq.add(this.parseInternal);
+        };
+        ^SPSeq(seq);
     }
 }
 
 SP {
-    var name, >hold, >speed, >quant;
+    var name, >hold, >quant;
 
     *new { |name|
-        ^super.newCopyArgs(name, false, 1, 4);
+        ^super.newCopyArgs(name, false, 4);
+    }
+
+    get {
+        ^Ndef(name);
     }
 
     pat { |str|
         var parser = SPParser(str),
             seq = parser.parse(),
             clock = TempoClock.default,
-            scheduleTime = (quant - (clock.beats % quant));
+            cycleBeats = 4,
+            cycleTime = clock.beatDur * cycleBeats;
+        Tdef(name, {
+            loop {
+                Ndef(name, {
+                    var vals, durs;
+                    #vals, durs = seq.demand(cycleTime);
+                    
+                    vals = Dseq(vals, 1);
+                    durs = Dseq(durs, 1);
 
-        TempoClock.sched(scheduleTime, {
-            var cycleBeats = 4 / speed,
-                cycleTime = clock.beatDur * cycleBeats;
-            Tdef(name, {
-                loop {
-                    Ndef(name, {
-                        var vals, durs; 
-                        #vals, durs = seq.visit(cycleTime);
-                        TDuty.kr(Dseq([durs], 1), Impulse.kr(0), Dseq([vals], 1));
-                    });
-                    cycleBeats.wait;
-                }
-            }).play;
-            nil;
-        });
+                    if (hold) {
+                        Duty.kr(durs, Impulse.kr(0), vals);
+                    } {
+                        TDuty.kr(durs, Impulse.kr(0), vals);
+                    }
+                });
+                cycleBeats.wait;
+            }
+        })
+        .quant_(4)
+        .play;
 
-        ^Ndef(name); 
+        ^this.get; 
     }
 }
