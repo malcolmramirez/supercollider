@@ -29,7 +29,7 @@ SPTokenStream {
     }
 
     isTerminal {
-        ^(ptr >= tokens.size);
+        ^((ptr >= tokens.size) and: {isNil(head)});
     }
 
     curr {
@@ -114,15 +114,10 @@ SPSeq {
         ^super.newCopyArgs(seq);
     }
 
-    demand { |dur|
-        var vals = [],
-            durs = [];
+    visit { |depth, visitor|
         seq.do { |elem|
-            var pair = elem.demand(dur / seq.size);
-            vals = vals.add(pair[0]);
-            durs = durs.add(pair[1]);
+            elem.visit(depth / seq.size, visitor);
         };
-        ^[Dseq(vals, 1), Dseq(durs, 1)]
     }
 }
 
@@ -133,23 +128,31 @@ SPEuc {
         ^super.newCopyArgs(val, n, k, o);
     }
 
-    demand { |dur|
-        var nVal = n.demand(dur)[0].asInteger,
-            kVal = k.demand(dur)[0].asInteger,
-            oVal = o.demand(dur)[0].asInteger,
-            vVal = val.demand(dur / nVal),
-            genPat = { |val|
-                ((kVal / nVal * (0..nVal - 1))
-                    .floor
-                    .differentiate
-                    .asInteger
-                    .min(1)[0] = if (kVal <= 0) { 0 } { 1 })
-                .rotate(oVal)
-                .collect { |i| 
-                    if (i == 0) { 0 } { val }
-                }
+    visit { |depth, visitor|
+        var args = `Dictionary(),
+            visitArg = { |n| 
+                { |x, d| args.set(args.get.put(n, x.asInteger)) }
             };
-        ^[Dseq(genPat.(vVal[0]), 1), Dseq(nVal.collect { vVal[1] }, 1)]
+
+        k.visit(depth, visitArg.(\k));
+        n.visit(depth, visitArg.(\n));
+        o.visit(depth, visitArg.(\o));
+
+        depth = depth / args[\n];
+
+        ((args[\k] / args[\n] * (0..args[\n] - 1))
+            .floor
+            .differentiate
+            .asInteger
+            .min(1)[0] = if (args[\k] <= 0) { 0 } { 1 })
+        .rotate(args[\o])
+        .do { |i| 
+            if (i == 0) { 
+                visitor.(0, depth)
+            } { 
+                val.visit(depth, visitor) 
+            }
+        }
     }
 }
 
@@ -160,10 +163,10 @@ SPAlt {
         ^super.newCopyArgs(alts, 0);
     }
 
-    demand { |dur|
+    visit { |depth, visitor|
         var tmp = alts[ptr];
         ptr = (ptr + 1) % alts.size;
-        ^tmp.demand(dur);
+        tmp.visit(depth, visitor);
     }
 }
 
@@ -174,8 +177,8 @@ SPCode {
         ^super.newCopyArgs(expr.compile);
     }
     
-    demand { |dur|
-        ^[f.value, dur];
+    visit { |depth, visitor|
+        visitor.(f.value, depth);
     }
 }
 
@@ -186,8 +189,8 @@ SPSym {
         ^super.newCopyArgs(Note.toFreq(val));
     }
 
-    demand { |dur| 
-        ^[val, dur];
+    visit { |depth, visitor| 
+        visitor.(val, depth);
     }
 }
 
@@ -201,8 +204,8 @@ SPNum {
         ^super.newCopyArgs(val.asFloat);
     }
 
-    demand { |dur| 
-        ^[val, dur];
+    visit { |depth, visitor| 
+        visitor.(val, depth);
     }
 }
 
@@ -227,7 +230,7 @@ SPParser {
         var acc = [];
         stream.consume(start);
         while { stream.peek().type != end } {
-            acc = acc ++ this.parseInternal;
+            acc = acc.add(this.parseInternal);
         };
         stream.consume(end);
         ^acc;
@@ -277,7 +280,7 @@ SPParser {
             if (args.size != 2 and: {args.size != 3}) {
                 Error("Wrong number of args for euc: " ++ args).throw;
             };
-            sp = SPEuc(sp, args[0], args[1], args[2] ? SPNum("0"));
+            sp = SPEuc(sp, args[0], args[1], args[2] ? SPNum(0));
         };
         ^sp;
     }
@@ -286,7 +289,7 @@ SPParser {
         // TODO: Something about this isn't working quite right...
         //       Patterns defined without an explicit wrapper seq don't sync up correctly to stuff.
         var seq = [];
-        while { not(stream.isTerminal()) } {
+        while { not(stream.isTerminal) } {
             seq = seq.add(this.parseInternal);
         };
         ^SPSeq(seq);
@@ -306,18 +309,24 @@ SP {
 
     pat { |str|
         var parser = SPParser(str),
-            seq = parser.parse(),
+            seq = parser.parse,
             clock = TempoClock.default,
             cycleBeats = 4,
             cycleTime = clock.beatDur * cycleBeats;
         Tdef(name, {
             loop {
                 Ndef(name, {
-                    var vals, durs;
-                    #vals, durs = seq.demand(cycleTime);
+                    var vals =`[], 
+                        durs = `[],
+                        visitor = { |val, dur|
+                            vals.set(vals.get.add(val));
+                            durs.set(durs.get.add(dur));
+                        };
+
+                    seq.visit(cycleTime, visitor);
                     
-                    vals = Dseq(vals, 1);
-                    durs = Dseq(durs, 1);
+                    vals = Dseq(vals.get, 1);
+                    durs = Dseq(durs.get, 1);
 
                     if (hold) {
                         Duty.kr(durs, Impulse.kr(0), vals);

@@ -73,8 +73,10 @@ Ndef(\saw, {
     sig = Pan2.ar(sig, \pan.kr(0));
 
     sig;
-});
+})
+)
 
+(
 Ndef(\kick)
     .map(\imp, SP(\kp).pat("[1 <~ 1> ~ [1 1 1 ~]]"))
     .play;
@@ -95,6 +97,28 @@ Ndef(\saw)
     .play;
 )
 
+// GOAL:
+(
+Syn(\kick)
+    .imp_t("<1(5 16) 1(5 16) [1 1 1 1]>")
+
+Syn(\snare)
+    .imp_t("1(2 16 6)")
+    .freq("[e5 <a5 g5>]")
+    .play;
+
+Syn(\hh)
+    .imp_t("1(16 16)")
+    .play;
+
+Syn(\saw)
+    .imp_t("1(16 16)")
+    .rel(b/4)
+    .pan("`rrand(-1.0, 1.0)`(16 16)")
+    .freq("c3 e4 g3 b3 <c3 d4> <e4 [c3 e4 g3 b4] c4> g3 b3")
+    .play;
+)
+
 (
 
 Ndef(\kick)
@@ -102,7 +126,7 @@ Ndef(\kick)
     .play;
 
 Ndef(\snare)
-    .map(\freq, SP(\fp2).hold_(true).pat("[`660 + rrand(-10, 10)` 660]"))
+    .map(\freq, SP(\fp2).hold_(true).pat("[e5 <a5 g5>]"))
     .map(\imp, SP(\sp).pat("1(2 16 6)"))
     .play;
 
@@ -114,9 +138,8 @@ Ndef(\saw)
     .map(\imp, SP(\np2).pat("1(16 16)"))
     .map(\rel, { b/4 })
     .map(\pan, SP(\pn).pat("`rrand(-1.0, 1.0)`(16 16)"))
-    .map(\freq, SP(\np).hold_(true).pat("[c3 e4 g3 b3 <c3 d4> <e4 [c3 e4 g3 b4] c4> g3 b3]"))
+    .map(\freq, SP(\np).hold_(true).pat("c3 e4 g3 b3 <c3 d4> <e4 [c3 e4 g3 b4] c4> g3 b3"))
     .play;
-
 )
 
 UnitTest.runAll;
