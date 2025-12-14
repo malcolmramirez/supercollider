@@ -252,7 +252,7 @@ SPParser {
     }
 }
 
-SPTrig {
+SP {
     var name, >hold, >speed, >quant;
 
     *new { |name|
@@ -261,28 +261,26 @@ SPTrig {
 
     pat { |str|
         var parser = SPParser(str),
-            seq = parser.parse();
-
-        var clock = TempoClock.default,
-            currentBeat = clock.beats,
-            scheduleTime = (quant - (currentBeat % quant));
-        
-        if (not(seq.isKindOf(SPSeq))) {
-            seq = SPSeq([seq]);
-        };
+            seq = parser.parse(),
+            clock = TempoClock.default,
+            scheduleTime = (quant - (clock.beats % quant));
 
         TempoClock.sched(scheduleTime, {
-            var cycleTime = TempoClock.default.beatDur * 4 / speed;
-            seq = seq.visit(cycleTime);
-            Ndef(name, {
-                if (hold) {
-                    Duty.kr(seq[0], 0, seq[1]);
-                } {
-                    TDuty.kr(seq[0], 0, seq[1]);
+            var cycleBeats = 4 / speed,
+                cycleTime = clock.beatDur * cycleBeats;
+            Tdef(name, {
+                loop {
+                    Ndef(name, {
+                        var vals, durs; 
+                        #vals, durs = seq.visit(cycleTime);
+                        TDuty.kr(Dseq([durs], 1), Impulse.kr(0), Dseq([vals], 1));
+                    });
+                    cycleBeats.wait;
                 }
-            });
+            }).play;
             nil;
         });
+
         ^Ndef(name); 
     }
 }
