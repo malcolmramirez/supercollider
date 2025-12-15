@@ -20,7 +20,9 @@ SPTokenStream {
             $< -> \lt,
             $> -> \gt,
             $` -> \tick,
-            $~ -> \rest
+            $~ -> \rest,
+            $* -> \mul,
+            $/ -> \div
         ];
     }
 
@@ -107,6 +109,46 @@ SPTokenStream {
     }
 }
 
+ValueVisitor {
+    var container;
+
+    *new {
+        ^this.newCopyArgs(`nil);
+    }
+
+    visit { |dur, val|
+        container.set(val);
+    }
+
+    get {
+        ^container.get;
+    }
+}
+
+SPSeqVisitor {
+    var vals, durs;
+
+    *new {
+        ^this.newCopyArgs(`[], `[]);
+    }
+
+    visit { |dur, val|
+        vals.set(vals.get.add(val));
+        durs.set(durs.get.add(dur));
+    }
+
+    demand { |trig|
+        var demandVals = Dseq(vals.get, 1), 
+            demandDurs = Dseq(durs.get, 1);
+
+        ^if (trig) {
+            TDuty.kr(demandDurs, Impulse.kr(0), demandVals)
+        } {
+            Duty.kr(demandDurs, Impulse.kr(0), demandVals)
+        }
+    }
+}
+
 SPSeq {
     var seq;
 
@@ -129,26 +171,25 @@ SPEuc {
     }
 
     visit { |depth, visitor|
-        var args = `Dictionary(),
-            visitArg = { |n| 
-                { |x, d| args.set(args.get.put(n, x.asInteger)) }
-            };
+        var kVisitor = ValueVisitor(),
+            nVisitor = ValueVisitor(),
+            oVisitor = ValueVisitor();
 
-        k.visit(depth, visitArg.(\k));
-        n.visit(depth, visitArg.(\n));
-        o.visit(depth, visitArg.(\o));
+        k.visit(depth, kVisitor);
+        n.visit(depth, nVisitor);
+        o.visit(depth, oVisitor);
 
-        depth = depth / args[\n];
+        depth = depth / nVisitor.get;
 
-        ((args[\k] / args[\n] * (0..args[\n] - 1))
+        ((kVisitor.get / nVisitor.get * (0..nVisitor.get - 1))
             .floor
             .differentiate
             .asInteger
-            .min(1)[0] = if (args[\k] <= 0) { 0 } { 1 })
-        .rotate(args[\o])
+            .min(1)[0] = if (kVisitor.get <= 0) { 0 } { 1 })
+        .rotate(oVisitor.get.asInteger)
         .do { |i| 
             if (i == 0) { 
-                visitor.(0, depth)
+                SPNum(0).visit(depth, visitor)
             } { 
                 val.visit(depth, visitor) 
             }
@@ -170,6 +211,31 @@ SPAlt {
     }
 }
 
+SPBinOp {
+    var lhs, op, rhs;
+
+    *new { |lhs, op, rhs|
+
+        ^super.newCopyArgs(lhs, op, rhs);
+    }
+
+    visit { |depth, visitor|
+        var rhsVisitor = ValueVisitor();
+        rhs.visit(depth, rhsVisitor);
+
+        if (op == \mul) {
+            depth = depth / rhsVisitor.get;
+            rhsVisitor.get.do {
+                lhs.visit(depth, visitor)
+            }
+        };
+
+        if (op == \div) {
+            Error("div is unimplemented!").throw;
+        };
+    }
+}
+
 SPCode {
     var f;
 
@@ -178,7 +244,7 @@ SPCode {
     }
     
     visit { |depth, visitor|
-        visitor.(f.value, depth);
+        visitor.visit(depth, f.value);
     }
 }
 
@@ -190,7 +256,7 @@ SPSym {
     }
 
     visit { |depth, visitor| 
-        visitor.(val, depth);
+        visitor.visit(depth, val);
     }
 }
 
@@ -205,7 +271,7 @@ SPNum {
     }
 
     visit { |depth, visitor| 
-        visitor.(val, depth);
+        visitor.visit(depth, val);
     }
 }
 
@@ -216,91 +282,127 @@ SPParser {
         ^super.newCopyArgs(SPTokenStream(pat));
     }
 
+    parseVal {
+        // num | sym | rest
+        var head = stream.peek;
+        if (head.type == \num or: { head.type == \rest }) {
+            ^SPNum(stream.consume(head.type));
+        };
+        ^SPSym(stream.consume(\sym));
+    }
+
     parseCode { 
         var acc = "";
         stream.consume(\tick);
-        while { stream.peek().type != \tick } {
+        while { stream.peek.type != \tick } {
             acc = acc ++ stream.consume(\any);
         };
         stream.consume(\tick);
-        ^acc;
+        ^SPCode(acc);
     }
 
-    parseList { |start, end| 
+    parseAlt {
         var acc = [];
-        stream.consume(start);
-        while { stream.peek().type != end } {
-            acc = acc.add(this.parseInternal);
+        stream.consume(\lt);
+        while { stream.peek.type != \gt } {
+            acc = acc.add(this.parseExpr);
         };
-        stream.consume(end);
-        ^acc;
+        stream.consume(\gt);
+        ^SPAlt(acc);
     }
 
-    parseInternal { 
-        var head = stream.peek(),
-            sp;
+    parseAtom {
+        // code | alt | val
+        var head = stream.peek;
         
-        if (head.type == \lbrack) {
-            // parse as seq
-            var list = this.parseList(\lbrack, \rbrack);
-            sp = SPSeq(list);
+        if (head.type == \tick) {
+            ^this.parseCode;
         };
 
         if (head.type == \lt) {
-            // parse as alt
-            var list = this.parseList(\lt, \gt);
-            sp = SPAlt(list);
+            ^this.parseAlt;
         };
 
-        if (head.type == \tick) {
-            // parse as code
-            var code = this.parseCode();
-            sp = SPCode(code);
-        };
+        ^this.parseVal;
+    }
 
-        if (head.type == \num or: {head.type == \rest}) {
-            var num = stream.consume(head.type);
-            sp = SPNum(num);
+    parseSeq { 
+        var acc = [];
+        stream.consume(\lbrack);
+        while { stream.peek.type != \rbrack } {
+            acc = acc.add(this.parseExpr);
         };
+        stream.consume(\rbrack);
+        ^SPSeq(acc);
+    }
 
-        if (head.type == \sym) {
-            var str = stream.consume(\sym);
-            sp = SPSym(str);
+    parseEuc { |lhs|
+        var k, n, o;
+
+        stream.consume(\lparen);
+        k = this.parseAtom;
+        n = this.parseAtom;
+        o = if (stream.peek.type != \rparen) { this.parseAtom } { SPNum(0) };
+        stream.consume(\rparen);
+
+        ^SPEuc(lhs, k, n, o);
+    }
+
+    parseBinop { |lhs|
+        var op, rhs;
+
+        op = stream.peek.type;
+        if (op != \mul and: {op != \div}) {
+            Error("Invalid binop " ++ op).throw;
+        };
+        stream.consume(op);
+
+        ^SPBinOp(lhs, op, this.parseAtom);
+    }
+
+    parseExpr {
+        // elem | seq | binop | euc
+
+        var head = stream.peek;
+        var sp = if (head.type == \lbrack) { 
+            this.parseSeq 
+        } { 
+            this.parseAtom 
         };
 
         if (stream.isTerminal()) {
             ^sp;
         };
 
-        head = stream.peek();
-        
-        // parse as euc
+        head = stream.peek;
+
+        // euc
         if (head.type == \lparen) {
-            var args = this.parseList(\lparen, \rparen);
-            if (args.size != 2 and: {args.size != 3}) {
-                Error("Wrong number of args for euc: " ++ args).throw;
-            };
-            sp = SPEuc(sp, args[0], args[1], args[2] ? SPNum(0));
+            sp = this.parseEuc(sp);
         };
+
+        // binop
+        if (head.type == \mul or: {head.type == \div}) {
+            sp = this.parseBinop(sp);
+        };
+
         ^sp;
     }
 
     parse {
-        // TODO: Something about this isn't working quite right...
-        //       Patterns defined without an explicit wrapper seq don't sync up correctly to stuff.
         var seq = [];
         while { not(stream.isTerminal) } {
-            seq = seq.add(this.parseInternal);
+            seq = seq.add(this.parseExpr);
         };
         ^SPSeq(seq);
     }
 }
 
 SP {
-    var name, >hold, >quant;
+    var name, >trig, >quant;
 
     *new { |name|
-        ^super.newCopyArgs(name, false, 4);
+        ^super.newCopyArgs(name, true, 4);
     }
 
     get {
@@ -316,28 +418,14 @@ SP {
         Tdef(name, {
             loop {
                 Ndef(name, {
-                    var vals =`[], 
-                        durs = `[],
-                        visitor = { |val, dur|
-                            vals.set(vals.get.add(val));
-                            durs.set(durs.get.add(dur));
-                        };
-
+                    var visitor = SPSeqVisitor();
                     seq.visit(cycleTime, visitor);
-                    
-                    vals = Dseq(vals.get, 1);
-                    durs = Dseq(durs.get, 1);
-
-                    if (hold) {
-                        Duty.kr(durs, Impulse.kr(0), vals);
-                    } {
-                        TDuty.kr(durs, Impulse.kr(0), vals);
-                    }
+                    visitor.demand(trig);
                 });
                 cycleBeats.wait;
             }
         })
-        .quant_(4)
+        .quant_(quant)
         .play;
 
         ^this.get; 
