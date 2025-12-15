@@ -73,72 +73,33 @@ Ndef(\saw, {
     sig = Pan2.ar(sig, \pan.kr(0));
 
     sig;
-});
+}); 
 
-Ndef(\kick)
-    .map(\imp, SP(\kp).pat("<1(5 16) 1(5 16) [1 1 1 1]>"))
+Def(\kick)
+    .imp_t("<1(5 16) [1 1 1 <1 ~>]>")
     .play;
 
-Ndef(\snare)
-    .map(\freq, SP(\fp2).trig_(false).pat("e5 <a5 g5>"))
-    .map(\imp, SP(\sp).pat("1(2 16 6)"))
-    .play;
-
-Ndef(\hh)
-    .map(\imp, SP(\hp).pat("1*16"))
-    .play;
-
-Ndef(\saw)
-    .map(\imp, SP(\np2).pat("1*16"))
-    .map(\rel, { b/4 })
-    .map(\pan, SP(\pn).pat("`rrand(-1.0, 1.0)`(16 16)"))
-    .map(\freq, SP(\np).trig_(false).pat("c3 e4 g3 b3 <c3 d4> <e4 [c3 e4 g3 b4] c4> g3 b3"))
-    .play;
-)
-
-
-
-(
-Ndef(\kick)
-    .map(\imp, SP(\kp).pat("[1 <~ 1> ~ [1 1 1 ~]]"))
-    .play;
-
-Ndef(\snare)
-    .map(\imp, SP(\sp).pat("1(<8 8 8 5> 16 4)"))
-    .play;
-
-Ndef(\hh)
-    .map(\imp, SP(\hp).pat("1(6 16 4)"))
-    .play;
-
-Ndef(\saw)
-    .map(\imp, SP(\np2).pat("1"))
-    .map(\freq, SP(\np)
-                    .hold_(true)
-                    .pat("c3_maj7"))
-    .play;
-)
-
-// GOAL:
-(
-Defn(\kick)
-    .imp_t("<1(5 16) 1(5 16) [1 1 1 1]>")
-
-Defn(\snare)
+Def(\snare)
+    .freq("e5 <a5 g5>")
     .imp_t("1(2 16 6)")
-    .freq("[e5 <a5 g5>]")
     .play;
 
 Def(\hh)
-    .imp_t("1(16 16)")
+    .imp_t("1*16")
     .play;
 
 Def(\saw)
-    .imp_t("1(16 16)")
-    .rel(b/4)
-    .pan("`rrand(-1.0, 1.0)`(16 16)")
+    .imp_t("1*16")
+    .rel{b/4}
+    .pan("`rrand(-1.0, 1.0)`*16")
     .freq("c3 e4 g3 b3 <c3 d4> <e4 [c3 e4 g3 b4] c4> g3 b3")
+    .play;
+
+Ndef(\saw).copy(\saw2);
+Def(\saw2)
+    .imp_t("1*16")
+    .rel {b/4}
+    .freq("c2 c2 e3 <g3 b4>")
     .play;
 )
 
-UnitTest.runAll;
