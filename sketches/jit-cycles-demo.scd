@@ -72,19 +72,32 @@ Ndef(\saw, {
 
     sig;
 }); 
+Ndef(\saw).copy(\saw2);
 
+
+
+
+)
+
+(
 Def(\kick)
     .imp_t("<1(5 16) 1*4>")
     .play;
-)
 
 Def(\snare)
     .freq("e5 <a5 g5>")
-    .imp_t("1(2 16 6)")
-    .play;
+    .imp_t("1(2 16 6)");
 
 Def(\hh)
     .imp_t("1*16")
+    .pan("`rrand(-0.5, 0.5)`*16")
+    .play;
+
+Def(\saw2)
+    .imp_t("1*16")
+    .rel{b/4}
+    .pan("`rrand(-1.0, 1.0)`*16")
+    .freq("c2 c2 e2 <g2 ~>")
     .play;
 
 Def(\saw)
@@ -93,13 +106,4 @@ Def(\saw)
     .pan("`rrand(-1.0, 1.0)`*16")
     .freq("c3 e4 g3 b3 <c3 d4> <e4 [c3 e4 g3 b4] c4> g3 b3")
     .play;
-
-Ndef(\saw).copy(\saw2);
-Def(\saw2)
-    .imp_t("1*16")
-    .rel {b/4}
-    // .freq("c2")
-    .freq("c2 c2 e3 <g3 b4>")
-    .play;
 )
-

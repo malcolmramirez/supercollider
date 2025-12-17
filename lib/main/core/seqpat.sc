@@ -425,7 +425,6 @@ SP {
                 cycleBeats.wait;
             }
         })
-        .quant_(quant)
         .play;
 
         ^this.get; 

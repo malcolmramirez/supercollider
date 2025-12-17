@@ -1,8 +1,12 @@
 Def {
-    var name;
+    var name, quant;
 
     *new { |name|
-        ^super.newCopyArgs(name);
+        ^super.newCopyArgs(name).quant(4);
+    }
+
+    quant { |q|
+        Ndef(name).quant_(q)
     }
 
     doesNotUnderstand { |selector ...args|
@@ -22,7 +26,9 @@ Def {
             if (trig) {
                 selectorString = selectorString[0..(selectorString.size-3)];
             };
-            node = SP(ndefName).trig_(trig).pat(node);
+            node = SP(ndefName)
+                .trig_(trig)
+                .pat(node);
         };
         selector = selectorString.asSymbol;
         Ndef(name).map(selector, node)
