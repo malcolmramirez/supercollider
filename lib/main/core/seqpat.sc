@@ -137,6 +137,10 @@ SPSeqVisitor {
         durs.set(durs.get.add(dur));
     }
 
+    pairs {
+        ^[vals.get, durs.get];
+    }
+
     demand { |trig|
         var demandVals = Dseq(vals.get, 1), 
             demandDurs = Dseq(durs.get, 1);
@@ -398,6 +402,22 @@ SPParser {
     }
 }
 
+// TODO: Compile the mini expression to a pattern object?
+// A Pseq?
+SPMini {
+
+    *durVals { |pat| 
+        var pair, visitor, cycleTime, seq;
+
+        seq = SPParser(pat).parse;
+        cycleTime = TempoClock.default.beatDur * 4;
+        visitor = SPSeqVisitor();
+        seq.visit(cycleTime, visitor);
+
+        ^visitor.pairs;
+    }
+}
+
 SP {
     var name, >trig, >quant;
 
@@ -430,3 +450,4 @@ SP {
         ^this.get; 
     }
 }
+
