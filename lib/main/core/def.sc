@@ -49,11 +49,8 @@ Def {
 
         Tdef(this.genName(\in), {
             inf.do { |i| 
-                var dur = durs.wrapAt(i).next;
-                if (vals.wrapAt(i).next != 0.0) {
-                    proxy[\in].spawn;
-                };
-                dur.wait;
+                proxy[\in].spawn;
+                (1/4).wait;
             }
         }).play;
 

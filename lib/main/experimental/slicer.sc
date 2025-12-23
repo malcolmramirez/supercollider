@@ -94,6 +94,9 @@ Slice {
                 var secondsPerFrame = BufFrames.kr(bufnum) / BufSampleRate.kr(bufnum);
                 var framesPerSlice = BufFrames.kr(bufnum) / numSlices;
 
+                var begin = (secondsPerBar / numSlices) * \begin.kr(0);
+                var end = (secondsPerBar / numSlices) * \end.kr(1);
+
                 var sig = PlayBuf.ar(
                     numChannels: 2,
                     bufnum: bufnum,
@@ -104,8 +107,8 @@ Slice {
 
                 sig = sig * \amp.kr(1);
                 sig = sig * Env.perc(
-                    0,
-                    secondsPerBar / numSlices,
+                    begin,
+                    end,
                     curve: \curve.kr(100)
                 ).ar(Done.freeSelf);
 
