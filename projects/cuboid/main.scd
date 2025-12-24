@@ -5,6 +5,7 @@ s.waitForBoot {
         var drumBus, drumFx;
         var spawnArp, spawnDrums, spawnPad, spawnSub;
         var play, tdaddr;
+        var breaks;
 
         tdaddr = NetAddr("127.0.0.1", 57130);
 
@@ -31,6 +32,14 @@ s.waitForBoot {
             ^res;
         };
 
+        breaks = { |path|
+            PathName(path)
+            .entries
+            .select { |f| f.extension == "wav" }
+            .collect { |f|
+                Buffer.read(s, f.fullPath);
+            };
+        }.("~/dev/samples/samples-extra/break");
         Import("synthdefs.scd");
 
         drumBus = Bus.audio(s, 2);
@@ -72,7 +81,7 @@ s.waitForBoot {
             var buffer, sampleDur, rate, slice, clock, freeSlice;
 
             clock = TempoClock.default;
-            buffer = ~dirt.buffers[\break][20];
+            buffer = breaks[20];
             sampleDur = buffer.numFrames / buffer.sampleRate;
             rate = sampleDur / (clock.beatsPerBar / clock.tempo);
             freeSlice = {
