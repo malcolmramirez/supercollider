@@ -1,45 +1,4 @@
-p.clear;
 (
-d = { |path|
-    PathName(path)
-        .entries
-        .select { |f| f.extension == "wav" }
-        .collect { |f|
-            Buffer.read(s, f.fullPath);
-        };
-}.("~/dev/samples/samples-extra/break");
-
-SynthDef(\slicer, {
-    var bufnum = \bufnum.kr;
-    var numSlices = \numSlices.kr(1);
-
-    var beatsPerSecond = (\tempo.kr); // bps
-    var secondsPerBar = \barlen.kr(4) / beatsPerSecond;
-
-    var secondsPerFrame = BufFrames.kr(bufnum) / BufSampleRate.kr(bufnum);
-    var framesPerSlice = BufFrames.kr(bufnum) / numSlices;
-
-    var atk = (secondsPerBar / numSlices) * \begin.kr(0);
-    var rel = (secondsPerBar / numSlices) * \end.kr(1);
-
-    var sig = PlayBuf.ar(
-        numChannels: 2,
-        bufnum: bufnum,
-        rate: secondsPerFrame / secondsPerBar,
-        doneAction: 2,
-        startPos: framesPerSlice * \slice.kr(0)
-    );
-
-    sig = sig * \amp.kr(1);
-    sig = sig * Env.perc(
-        atk,
-        rel,
-        curve: \curve.kr(100)
-    ).ar(Done.freeSelf);
-
-    Out.ar(\i_out.kr(0), sig);
-}).add;
-
 SynthDef(\saw, {
     var sig, env;
 
@@ -66,12 +25,27 @@ SynthDef(\kick, {
 }).add;
 )
 
+p.clear;
 (
-p = ProxySpace(s);
 b = 150/60;
-p.makeTempoClock(b);
-p.fadeTime_(0).quant_(4);
-p.push;
+p = ProxySpace(s)
+    .fadeTime_(0)
+    .quant_(4)
+    .makeTempoClock(b)
+    .push;
+)
+
+d.keys.postln;
+
+d[\bssnare][0].play;
+
+~snare.play;
+(
+~snare[0] = Pbind(
+    \instrument, \oneshot,
+    \buf, d[\bssnare][1],
+    \dur, 1/2
+)
 )
 
 ~break.play;
@@ -94,7 +68,7 @@ p.push;
     \end, 1,
     \amp, 3.dbamp,
     \curve, 5,
-    \bufnum, d[9]
+    \buf, d[\break][9]
 );
 ~break[1] = \filterIn -> { |in| HPF.ar(in, SinOsc.ar(b/4).range(400, 1600)) }
 )
