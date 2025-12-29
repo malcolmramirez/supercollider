@@ -46,7 +46,7 @@ SynthDef(\oneshot, {
     var sig = PlayBuf.ar(
         numChannels: 2,
         bufnum: bufnum,
-        rate: \rate.kr(1), 
+        rate: \rate.kr(1) * BufRateScale.kr(bufnum), 
         doneAction: Done.freeSelf,
         startPos: 0
     );
@@ -58,3 +58,46 @@ SynthDef(\oneshot, {
     Out.ar(\i_out.kr(0), sig);
 }).add;
 )
+
+(
+// Pulsar synthesis
+SynthDef(\pulsar, {
+    var pulsaret, pulsaretEnv, 
+        sig, env, 
+        pf, df, bufnum, 
+        trig;
+
+    pf = \freq.kr(220);
+    trig = Impulse.ar(pf);
+    df = pf * \dratio.kr(1/2).reciprocal;
+
+    pulsaretEnv = Env(
+        [0, 1, 1, 0], 
+        [\patk.kr(0), \psust.kr(1), \prel.kr(0)].normalizeSum * 1/df,
+        curve: \pcurve.kr(0)).ar(gate: trig);
+
+    bufnum = \buf.kr;
+
+    pulsaret = PlayBuf.ar(
+        1,
+        bufnum,
+        BufRateScale.kr(bufnum) * BufDur.kr(bufnum) * df * \rate.kr(1),
+        trig);
+
+    sig = pulsaret * pulsaretEnv;
+    sig = sig * LFPulse.ar(pf);
+
+    env = Env(
+        [0, 1, 1, 0], 
+        [\atk.kr(0), \sust.kr(10), \rel.kr(0)],
+        curve: \pcurve.kr(0)).ar(Done.freeSelf);
+
+    sig = sig * env;
+    sig = sig * \amp.kr(1);
+    sig = Limiter.ar(sig);
+    sig = sig ! 2;
+
+    Out.ar(\i_out.kr(0), sig);
+}).add;
+)
+

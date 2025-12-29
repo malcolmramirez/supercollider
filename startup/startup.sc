@@ -13,7 +13,6 @@ s.reboot { // server options are only updated on reboot
 
     // Load samples
     s.waitForBoot {
-        // Load samples in startup directory
         var loadSamples = { |path|
                 PathName(path)
                     .entries
@@ -23,13 +22,22 @@ s.reboot { // server options are only updated on reboot
                     };
             };
         d = Dictionary[];
+
+        // load samples
         PathName("samples".resolveRelative)
             .entries
             .select { |f| f.isFolder }
             .do { |f|
                 d[f.folderName.asSymbol] = loadSamples.(f.fullPath);
             };
-        s.sync;
+
+        // load signals
+        d[\sigs] = [
+            // sin
+            Buffer.loadCollection(s, Signal.sineFill(s.sampleRate, [1.0]))
+        ];
+
+        // load synthdefs
         "synthdefs.scd".loadRelative;
         s.sync;
     };
