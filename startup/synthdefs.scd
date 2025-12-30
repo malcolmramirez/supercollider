@@ -57,39 +57,52 @@ SynthDef(\oneshot, {
 
     Out.ar(\i_out.kr(0), sig);
 }).add;
-)
 
-(
 // Pulsar synthesis
 SynthDef(\pulsar, {
-    var pulsaret, pulsaretEnv, 
+    var pulsaret, window, 
         sig, env, 
-        pf, df, bufnum, 
+        pf, df, bufnum, channels, 
         trig;
 
     pf = \freq.kr(220);
-    trig = Impulse.ar(pf);
-    df = pf * \dratio.kr(1/2).reciprocal;
-
-    pulsaretEnv = Env(
-        [0, 1, 1, 0], 
-        [\patk.kr(0), \psust.kr(1), \prel.kr(0)].normalizeSum * 1/df,
-        curve: \pcurve.kr(0)).ar(gate: trig);
-
+    df = \ffreq.kr(440);
     bufnum = \buf.kr;
 
+    trig = Impulse.ar(pf);
+
+    window = SelectX.ar(\window.kr(0), [
+        // hard drop
+        DC.ar(1.0),
+        // sin
+        Env([0, 1, 0], [1/2,1/2] * (1/df), \sin).ar(gate: trig),
+        // exp ramp up
+        XLine.ar(0, 1, 1/df),
+        // white noise
+        WhiteNoise.ar()
+    ]);
+
+    channels = BufChannels.kr(bufnum);
+
     pulsaret = PlayBuf.ar(
-        1,
+        2,
         bufnum,
         BufRateScale.kr(bufnum) * BufDur.kr(bufnum) * df * \rate.kr(1),
         trig);
 
-    sig = pulsaret * pulsaretEnv;
-    sig = sig * LFPulse.ar(pf);
+    pulsaret = Select.ar(channels - 1, [pulsaret, pulsaret!2]);
+
+    pulsaret = Mix.ar([
+        \convwet.kr(0) * Convolution2.ar(pulsaret, \convkern.kr(0), trig),
+        (1 - \convwet.kr(0)) * pulsaret
+    ]);
+
+    pulsaret = pulsaret * window;
+    sig = pulsaret * LFPulse.ar(pf);
 
     env = Env(
         [0, 1, 1, 0], 
-        [\atk.kr(0), \sust.kr(10), \rel.kr(0)],
+        [\atk.kr(0), \sust.kr(inf), \rel.kr(0)],
         curve: \pcurve.kr(0)).ar(Done.freeSelf);
 
     sig = sig * env;
