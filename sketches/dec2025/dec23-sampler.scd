@@ -27,7 +27,7 @@ SynthDef(\kick, {
 
 p.clear;
 (
-b = 150/60;
+b = 75/60;
 p = ProxySpace(s)
     .fadeTime_(0)
     .quant_(4)
@@ -37,15 +37,18 @@ p = ProxySpace(s)
 
 d.keys.postln;
 
-d[\bssnare][0].play;
+d[\bssnare][3].play;
 
 ~snare.play;
 (
 ~snare[0] = Pbind(
     \instrument, \oneshot,
-    \buf, d[\bssnare][1],
-    \dur, 1/2
-)
+    \buf, d[\bsperc][2],
+    \dur, 1/4,
+    \amp, 0.8
+);
+~snare[1] = \filterIn -> { |in| in * SinOsc.ar(b/8).range(0.25, 1) };
+~snare[2] = \filterIn -> { |in| LPF.ar(in, 1000) }
 )
 
 ~break.play;
@@ -58,7 +61,7 @@ d[\bssnare][0].play;
         Pseq([0,1,4,2,4,5,6,7,8,9,10,11,12,13,14,13], 1),
         Pseq([0,1,2,2,4,5,6,7,8,8,10,11,12,13,14,13], 1),
     ], inf),
-    \tempo, b/2,
+    \bpm, b,
     \barlen, 4,
     \dur, Pkey(\barlen) / Pkey(\numSlices),
     \begin, Pseq([
@@ -70,7 +73,7 @@ d[\bssnare][0].play;
     \curve, 5,
     \buf, d[\break][9]
 );
-~break[1] = \filterIn -> { |in| HPF.ar(in, SinOsc.ar(b/4).range(400, 1600)) }
+~break[1] = \filterIn -> { |in| HPF.ar(in, SinOsc.ar(b/4).range(600, 1600)) }
 )
 
 ~kick.play;
@@ -141,8 +144,8 @@ d[\bssnare][0].play;
         [3,8,13],
         [2,6,8],
     ], inf),
-    // \octave, Pseq([3,4,Pwrand([3,5], [1.5,1].normalizeSum)], inf),
-    \octave, 4,
+    \octave, Pseq([3,4,Pwrand([3,5], [1.5,1].normalizeSum)], inf),
+    // \octave, 5,
     \atk, 1,
     \sust, 1,
     \rel, 3,

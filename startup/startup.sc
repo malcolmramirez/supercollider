@@ -2,7 +2,7 @@
 s.reboot { // server options are only updated on reboot
 	// configure the sound server: here you could add hardware specific options
 	// see http://doc.sccode.org/Classes/ServerOptions.html
-    s.options.inDevice_("MacBook Pro Microphone");
+    s.options.inDevice_("agg in");
     s.options.outDevice_("blackhole+phones");
     s.options.sampleRate = 44100;
     s.options.numBuffers = 1024 * 4;

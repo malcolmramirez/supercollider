@@ -4,7 +4,7 @@ SynthDef(\slicer, {
     var bufnum = \buf.kr;
     var numSlices = \slices.kr(1);
 
-    var secondsPerBar = \barlen.kr(4) / \tempo.kr;
+    var secondsPerBar = \barlen.kr(4) / \bpm.kr;
 
     var secondsPerFrame = BufFrames.kr(bufnum) / BufSampleRate.kr(bufnum);
     var framesPerSlice = BufFrames.kr(bufnum) / numSlices;
@@ -71,44 +71,36 @@ SynthDef(\pulsar, {
 
     trig = Impulse.ar(pf);
 
-    window = SelectX.ar(\window.kr(0), [
+    window = LinSelectX.ar(\window.kr(0), [
         // hard drop
         DC.ar(1.0),
+        // exp ramp down
+        XLine.ar(1, 0, 1/df),
         // sin
-        Env([0, 1, 0], [1/2,1/2] * (1/df), \sin).ar(gate: trig),
+        Env([0, 1, 0], [1/2, 1/2] * (1/df), \sin).ar(gate: trig),
         // exp ramp up
         XLine.ar(0, 1, 1/df),
         // white noise
-        WhiteNoise.ar()
+        WhiteNoise.ar
     ]);
-
-    channels = BufChannels.kr(bufnum);
 
     pulsaret = PlayBuf.ar(
         2,
         bufnum,
         BufRateScale.kr(bufnum) * BufDur.kr(bufnum) * df * \rate.kr(1),
         trig);
-
-    pulsaret = Select.ar(channels - 1, [pulsaret, pulsaret!2]);
-
-    pulsaret = Mix.ar([
-        \convwet.kr(0) * Convolution2.ar(pulsaret, \convkern.kr(0), trig),
-        (1 - \convwet.kr(0)) * pulsaret
-    ]);
-
+    pulsaret = Select.ar(BufChannels.kr(bufnum) - 1, [pulsaret!2, pulsaret]);
     pulsaret = pulsaret * window;
-    sig = pulsaret * LFPulse.ar(pf);
 
     env = Env(
         [0, 1, 1, 0], 
         [\atk.kr(0), \sust.kr(inf), \rel.kr(0)],
         curve: \pcurve.kr(0)).ar(Done.freeSelf);
 
+    sig = pulsaret * LFPulse.ar(pf);
     sig = sig * env;
     sig = sig * \amp.kr(1);
     sig = Limiter.ar(sig);
-    sig = sig ! 2;
 
     Out.ar(\i_out.kr(0), sig);
 }).add;
