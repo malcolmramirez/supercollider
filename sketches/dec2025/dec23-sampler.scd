@@ -43,32 +43,36 @@ d[\bssnare][3].play;
 (
 ~snare[0] = Pbind(
     \instrument, \oneshot,
-    \buf, d[\bsperc][2],
-    \dur, 1/4,
-    \amp, 0.8
+    \buf, d[\bssnare][2],
+    \__ghost, Pwrand([0, 1], [4, 1].normalizeSum, inf),
+    \dur, Pswitch([
+        Pseq([Rest(1/2), 1/4, Rest(1/4)]),
+        Pseq([Rest(1/4), 1/4, 1/8, Rest(3/8)])
+    ], Pkey(\__ghost)),
+    \amp, Pswitch([
+        5.dbamp,
+        Pseq([5, -2, 5, 5].collect(_.dbamp))
+    ], Pkey(\__ghost))
 );
-~snare[1] = \filterIn -> { |in| in * SinOsc.ar(b/8).range(0.25, 1) };
-~snare[2] = \filterIn -> { |in| LPF.ar(in, 1000) }
+// ~snare[1] = \filterIn -> { |in| in * SinOsc.ar(b/8).range(0.25, 1) };
+// ~snare[2] = \filterIn -> { |in| LPF.ar(in, 1000) }
 )
 
 ~break.play;
 (
 ~break[0] = Pbind(
     \instrument, \slicer,
-    \numSlices, 16,
-    // \slice, Pseq((0..15).mirror1.pyramid(10), inf),
+    \slices, 16,
+    // \slice, Pseq((0..1).mirror1.pyramid(10), inf),
     \slice, Pseq([
         Pseq([0,1,4,2,4,5,6,7,8,9,10,11,12,13,14,13], 1),
         Pseq([0,1,2,2,4,5,6,7,8,8,10,11,12,13,14,13], 1),
     ], inf),
-    \bpm, b,
-    \barlen, 4,
-    \dur, Pkey(\barlen) / Pkey(\numSlices),
-    \begin, Pseq([
-        Pwrand([0, 0.5], [8, 1].normalizeSum, 15),
-        0.5
-    ], inf),
+    \tempo, b,
+    \bars, 4,
+    \begin, 0.5,
     \end, 1,
+    \dur, Pkey(\bars) / Pkey(\slices),
     \amp, 3.dbamp,
     \curve, 5,
     \buf, d[\break][9]
@@ -84,7 +88,7 @@ d[\bssnare][3].play;
         Pn(1/2, 15),
         Pseq([Rest(1/4), 1/8, Rest(1/8)])
     ], inf),
-    \amp, 8.dbamp
+    \amp, 10.dbamp
 );
 )
 
@@ -101,8 +105,8 @@ d[\bssnare][3].play;
         [3,8,13],
         [2,6,8],
     ], inf),
-    // \octave, Pseq([3,4,Pwrand([3,5], [1.5,1].normalizeSum)], inf),
-    \octave, 6,
+    \octave, Pseq([3,4,Pwrand([3,5], [1.5,1].normalizeSum)], inf),
+    // \octave, 6,
     \atk, 0.03,
     \rel, 0.05,
     \amp, 1.dbamp, 
@@ -144,13 +148,13 @@ d[\bssnare][3].play;
         [3,8,13],
         [2,6,8],
     ], inf),
-    \octave, Pseq([3,4,Pwrand([3,5], [1.5,1].normalizeSum)], inf),
-    // \octave, 5,
+    // \octave, Pseq([3,4,Pwrand([3,5], [1.5,1].normalizeSum)], inf),
+    \octave, 5,
     \atk, 1,
     \sust, 1,
     \rel, 3,
     \curve, 3,
-    \amp, -7.5.dbamp, 
+    \amp, -5.dbamp, 
     \dur, 4 
 );
 
